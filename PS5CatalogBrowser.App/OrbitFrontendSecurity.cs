@@ -10,9 +10,9 @@ internal static class OrbitFrontendSecurity
     public static bool IsOrigin(string value) => Uri.TryCreate(value, UriKind.Absolute, out var uri) &&
         uri.Scheme == "https" && uri.IdnHost == Host && uri.Port == 443 && uri.UserInfo.Length == 0;
     public static bool IsDocument(string value) => IsOrigin(value) && new Uri(value) is { AbsolutePath: "/index.html", Query.Length: 0, Fragment.Length: 0 };
-    public static bool TryCommand(string source, string currentDocument, string json, out string command, out string? page)
+    public static bool TryCommand(string source, string currentDocument, string json, out string command, out string? page, out string? message)
     {
-        command = ""; page = null;
+        command = ""; page = null; message = null;
         if (!IsDocument(source) || !IsDocument(currentDocument) || json.Length > 1024) return false;
         try
         {
@@ -29,7 +29,13 @@ internal static class OrbitFrontendSecurity
                 page = target.GetString();
                 return page is "Settings" or "Downloads" or "My Library" or "Classic Windows";
             }
-            return properties.Length == 2 && command is "fullscreen" or "exitFullscreen" or "toolbar" or "ready" or "error";
+            if (command == "error")
+            {
+                if (properties.Length != 3 || !root.TryGetProperty("message", out var error) || error.ValueKind != JsonValueKind.String || error.GetString() is not { Length: > 0 and <= 512 } detail) return false;
+                message = detail;
+                return true;
+            }
+            return properties.Length == 2 && command is "fullscreen" or "exitFullscreen" or "toolbar" or "ready";
         }
         catch (JsonException) { return false; }
     }

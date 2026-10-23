@@ -1,4 +1,4 @@
-type NativeCommand = { version: 1; command: 'navigate'; page: 'Settings' | 'Downloads' | 'My Library' | 'Classic Windows' } | { version: 1; command: 'fullscreen' | 'exitFullscreen' | 'toolbar' | 'ready' | 'error' };
+type NativeCommand = { version: 1; command: 'navigate'; page: 'Settings' | 'Downloads' | 'My Library' | 'Classic Windows' } | { version: 1; command: 'fullscreen' | 'exitFullscreen' | 'toolbar' | 'ready' } | { version: 1; command: 'error'; message: string };
 declare global {
   interface Window { chrome?: { webview?: { postMessage: (message: NativeCommand) => void; addEventListener: (type: string, action: (event: MessageEvent) => void) => void } } }
 }
@@ -39,7 +39,12 @@ const ready = new MutationObserver(() => {
   }
 });
 ready.observe(document.documentElement, { childList: true, subtree: true });
-window.addEventListener('error', () => window.chrome?.webview?.postMessage({ version: 1, command: 'error' }));
+window.addEventListener('error', event => window.chrome?.webview?.postMessage({ version: 1, command: 'error', message: event.message.slice(0, 512) || 'Unknown JavaScript error' }));
+window.addEventListener('unhandledrejection', event => {
+  const reason = event.reason;
+  const message = reason instanceof Error ? reason.message : String(reason);
+  window.chrome?.webview?.postMessage({ version: 1, command: 'error', message: `Unhandled rejection: ${message}`.slice(0, 512) });
+});
 window.chrome?.webview?.addEventListener('message', event => {
   if (typeof event.data?.fullscreen === 'boolean') fullscreen = event.data.fullscreen;
   if (event.data?.command === 'appearance') showAppearance();

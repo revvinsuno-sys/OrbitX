@@ -15,11 +15,11 @@ internal static class OrbitFrontendTests
     {
         var trusted = OrbitFrontendSecurity.Document;
         foreach (var invalid in new[] { "{}", "null", "{", "{\"version\":\"1\",\"command\":\"fullscreen\"}", "{\"version\":1,\"command\":\"exec\"}", "{\"version\":1,\"command\":\"fullscreen\",\"path\":\"C:/\"}", "{\"version\":1,\"command\":\"navigate\",\"page\":\"file:///C:/\"}", "{\"version\":1,\"command\":\"ready\",\"command\":\"ready\"}" })
-            Check(!OrbitFrontendSecurity.TryCommand(trusted, trusted, invalid, out _, out _), "invalid bridge schema rejected");
+            Check(!OrbitFrontendSecurity.TryCommand(trusted, trusted, invalid, out _, out _, out _), "invalid bridge schema rejected");
         const string valid = "{\"version\":1,\"command\":\"fullscreen\"}";
         foreach (var untrusted in new[] { "https://provider.invalid/index.html", "file:///C:/index.html", "https://orbit.ps5catalog.invalid.evil.test/index.html", "https://orbit.ps5catalog.invalid/frame.html", trusted + "?command=exec", trusted + "#frame" })
-            Check(!OrbitFrontendSecurity.TryCommand(untrusted, trusted, valid, out _, out _) && !OrbitFrontendSecurity.TryCommand(trusted, untrusted, valid, out _, out _), "both sender and current document must be trusted");
-        Check(!OrbitFrontendSecurity.TryCommand(trusted, trusted, "{\"version\":1,\"command\":\"openRelease\",\"releaseId\":\"file:///C:/secret\"}", out _, out _), "release handoff rejects paths");
+            Check(!OrbitFrontendSecurity.TryCommand(untrusted, trusted, valid, out _, out _, out _) && !OrbitFrontendSecurity.TryCommand(trusted, untrusted, valid, out _, out _, out _), "both sender and current document must be trusted");
+        Check(!OrbitFrontendSecurity.TryCommand(trusted, trusted, "{\"version\":1,\"command\":\"openRelease\",\"releaseId\":\"file:///C:/secret\"}", out _, out _, out _), "release handoff rejects paths");
         await ColdStartAsync();
         await OrbitInstallationFlowTests.RunAsync();
         await ManagedActionsAsync();

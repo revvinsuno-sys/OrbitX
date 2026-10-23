@@ -74,11 +74,11 @@ internal sealed class OrbitFrontendHost : UserControl, IDisposable
         core.ProcessFailed += (_, _) => Fail("The Orbit browser stopped. Use Classic Windows, or restart the app to retry.");
         core.WebMessageReceived += (_, e) =>
         {
-            if (!OrbitFrontendSecurity.TryCommand(e.Source, core.Source, e.WebMessageAsJson, out var command, out var page)) return;
+            if (!OrbitFrontendSecurity.TryCommand(e.Source, core.Source, e.WebMessageAsJson, out var command, out var page, out var message)) return;
             switch (command)
             {
                 case "ready": Ready.TrySetResult(); break;
-                case "error": Fail("Orbit reported a rendering error. Use Classic Windows."); break;
+                case "error": Fail("Orbit reported a rendering error: " + message + ". Use Classic Windows."); break;
                 case "navigate": PageRequested?.Invoke(page!); break;
                 case "fullscreen": FullscreenRequested?.Invoke(true); break;
                 case "exitFullscreen": FullscreenRequested?.Invoke(false); break;

@@ -15,6 +15,7 @@ const artwork: Record<string, Artwork> = {
   browser: { sheet: security, size: [1536, 1024], square: [49, 522, 449, 415], wide: [531, 522, 957, 415] },
   installation: { sheet: installation, size: [1536, 1024], square: [42, 67, 405, 405], wide: [468, 67, 1030, 405] },
   sharpemu: { sheet: installation, size: [1536, 1024], square: [42, 501, 405, 446], wide: [468, 501, 1030, 446] },
+  emulators: { sheet: emulation, size: [1536, 1024], square: [46, 58, 443, 417], wide: [533, 87, 959, 388], wideAlign: 'xMid' },
   kyty: { sheet: emulation, size: [1536, 1024], square: [46, 58, 443, 417], wide: [533, 87, 959, 388], wideAlign: 'xMid' },
   appearance: { sheet: emulation, size: [1536, 1024], square: [46, 516, 443, 418], wide: [533, 520, 959, 403], wideAlign: 'xMax' },
   language: { sheet: metadata, size: [1536, 1024], square: [52, 95, 428, 400], wide: [530, 95, 958, 400] },
