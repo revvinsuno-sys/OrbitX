@@ -32,6 +32,25 @@ public sealed partial class MainViewModel
             .GroupBy(entry => (entry.Platform, Game: entry.GameId.Length > 0 ? entry.GameId : entry.Title)).Take(2).ToArray();
         return byTitleId.Length == 1 ? byTitleId[0].First() : null;
     }
+    internal void RelinkLibraryEntry(LocalLibraryEntry item, CatalogEntry entry)
+    {
+        var platform = entry.Platform;
+        if (!Library.Contains(item) || !Entries.Contains(entry) ||
+            !(platform.Equals("PS4", StringComparison.OrdinalIgnoreCase) || platform.Equals("PS5", StringComparison.OrdinalIgnoreCase)))
+            throw new InvalidOperationException("Choose a PS4 or PS5 catalogue game and a retained library item.");
+        var previous = (item.CatalogEntryId, item.SourceId, item.CoverUrl, item.CoverFallbackUrl);
+        item.CatalogEntryId = entry.Id; item.SourceId = entry.SourceId;
+        item.CoverUrl = entry.CoverUrl; item.CoverFallbackUrl = entry.CoverFallbackUrl;
+        try { Save(); }
+        catch
+        {
+            item.CatalogEntryId = previous.CatalogEntryId; item.SourceId = previous.SourceId;
+            item.CoverUrl = previous.CoverUrl; item.CoverFallbackUrl = previous.CoverFallbackUrl;
+            throw;
+        }
+        Status = $"Linked {entry.Title} ({entry.Platform}) to its local game files.";
+        Changed(nameof(Library));
+    }
     private static string InstalledTitleId(LocalLibraryEntry item) => KytyCompatibility.NormalizeId(item.InstalledGame?.TitleId ?? "") is { Length: > 0 } installed
         ? installed : KytyCompatibility.NormalizeId(item.InspectedTitleId);
     internal string LibraryDisplayTitle(LocalLibraryEntry item) => item.InspectedTitle.Length > 0 ? item.InspectedTitle : LibraryCatalogEntry(item)?.Title ?? item.Title;

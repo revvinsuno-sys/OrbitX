@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { api } from '../orbit-upstream/src/api';
 import { Modal } from '../orbit-upstream/src/components';
 import { compatibilityStatuses, sharpEmuStatuses, StatusBadge } from './Compatibility';
@@ -35,6 +35,34 @@ function InstallationDetails({ item, close }: { item: LibraryCardItem; close: ()
     {!fields && !error && <p>Loading installation details…</p>}
     <dl className="library-installation-details">{fields && Object.entries(fields).filter(([, value]) => value).map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
     {error && <p role="alert">{error}</p>}
+  </Modal>;
+}
+
+type RelinkChoice = { id: string; sourceId: string; source: string; title: string; platform: string; titleId: string; cover: string };
+function RelinkLibraryDialog({ item, close }: { item: LibraryCardItem; close: () => void }) {
+  const [query, setQuery] = useState(item.title), [choices, setChoices] = useState<RelinkChoice[]>([]);
+  const [busy, setBusy] = useState(false), [error, setError] = useState(''), [searched, setSearched] = useState(false);
+  async function search(event: FormEvent) {
+    event.preventDefault(); setBusy(true); setError(''); setSearched(false);
+    try { const result = await api<{ items: RelinkChoice[] }>('/windows/library/relink/search', { query }); setChoices(result.items); setSearched(true); }
+    catch (e) { setError((e as Error).message); }
+    finally { setBusy(false); }
+  }
+  async function link(choice: RelinkChoice) {
+    setBusy(true); setError('');
+    try { await api('/windows/library/relink/link', { id: item.id, entryId: choice.id, sourceId: choice.sourceId }); changed(); close(); }
+    catch (e) { setError((e as Error).message); setBusy(false); }
+  }
+  return <Modal className="library-relink-dialog" title={`Relink ${item.title}`} close={close}>
+    <h2>Match this local game to the catalogue</h2>
+    <p>Link this local folder to a catalogue game to restore its platform and thumbnail. This does not move or replace your local game files.</p>
+    <form className="library-relink-search" onSubmit={search}><label>Game title<input autoFocus value={query} onChange={event => setQuery(event.target.value)} /></label>
+      <button type="submit" disabled={busy || query.trim().length < 2}>{busy ? 'Searching…' : 'Search games'}</button></form>
+    {error && <p role="alert">{error}</p>}
+    {!choices.length && <p role="status">{searched ? 'No matching games found in the available catalogues.' : 'Search the available catalogues to find the matching game.'}</p>}
+    <div className="library-relink-results">{choices.map(choice => <button key={`${choice.sourceId}:${choice.id}`} type="button" disabled={busy} onClick={() => void link(choice)}>
+      <span><strong>{choice.title}</strong><small>{choice.platform} {choice.titleId && `· ${choice.titleId}`} · {choice.source}</small></span>
+    </button>)}</div>
   </Modal>;
 }
 
@@ -114,6 +142,7 @@ function HoldDelete({ item }: { item: LibraryCardItem }) {
 export function LibraryCard({ item, action, children, close }: { item: LibraryCardItem; action: (action: string) => Promise<void>; children: ReactNode; close: () => void }) {
   const [viewingLog, setViewingLog] = useState(false);
   const [viewingDetails, setViewingDetails] = useState(false);
+  const [relinking, setRelinking] = useState(false);
   const [busy, setBusy] = useState(false), [error, setError] = useState(''), [editing, setEditing] = useState(false);
   const [status, setStatus] = useState(item.compatibilityOverride);
   const [sharpStatus, setSharpStatus] = useState(item.sharpEmuLocalCompatibility);
@@ -122,15 +151,15 @@ export function LibraryCard({ item, action, children, close }: { item: LibraryCa
     setBusy(true); setError('');
     try { await action(name); } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   }
-  const secondary = item.actions.filter(name => ['chooseEmulator', 'openFolder', 'reinspect', 'libraryDetails'].includes(name));
-  return <>{!viewingLog && !editing && !viewingDetails && <Modal title={`Manage ${item.title}`} close={close}><div className="windows-management library-management" data-library-management={item.id}>
+  const secondary = item.actions.filter(name => ['chooseEmulator', 'openFolder', 'reinspect', 'libraryDetails', 'relink'].includes(name));
+  return <>{!viewingLog && !editing && !viewingDetails && !relinking && <Modal title={`Manage ${item.title}`} close={close}><div className="windows-management library-management" data-library-management={item.id}>
     <div className="library-card-body"><h2>{item.title}</h2>{item.version && <p>{item.version}</p>}<p>{item.classification}</p><p>{item.integrity} · {item.extraction}</p>
       <div className="windows-actions library-card-actions">
         {item.actions.includes('viewLog') && <button data-windows-action="viewLog" onClick={() => setViewingLog(true)}>View log</button>}
         {item.actions.filter(name => ['installLibrary', 'extract'].includes(name)).map(name => <button key={name} disabled={busy} data-windows-action={name} onClick={() => void run(name)}>{name === 'installLibrary' ? item.installLabel || 'Install' : 'Extract and install'}</button>)}
         <button data-windows-action="compatibility" onClick={() => { setStatus(item.compatibilityOverride); setSharpStatus(item.sharpEmuLocalCompatibility); setEditing(true); }}>Compatibility</button>
         {secondary.length > 0 && <div className="library-management-actions">
-          {secondary.map(name => <button key={name} disabled={busy} data-windows-action={name} onClick={() => { if (name === 'libraryDetails') setViewingDetails(true); else void run(name); }}>{{ chooseEmulator: 'Choose emulator', openFolder: 'Open folder', reinspect: 'Reinspect', libraryDetails: 'Installation details' }[name]}</button>)}
+          {secondary.map(name => <button key={name} disabled={busy} data-windows-action={name} onClick={() => { if (name === 'libraryDetails') setViewingDetails(true); else if (name === 'relink') setRelinking(true); else void run(name); }}>{{ chooseEmulator: 'Choose emulator', openFolder: 'Open folder', reinspect: 'Reinspect', libraryDetails: 'Installation details', relink: 'Relink game' }[name]}</button>)}
         </div>}
       </div>
       <CompatibilityResults item={item} />
@@ -140,6 +169,7 @@ export function LibraryCard({ item, action, children, close }: { item: LibraryCa
     </div></Modal>}
     {viewingLog && <LaunchLogViewer item={item} close={() => setViewingLog(false)} />}
     {viewingDetails && <InstallationDetails item={item} close={close} />}
+    {relinking && <RelinkLibraryDialog item={item} close={() => setRelinking(false)} />}
     {editing && <Modal className="library-compatibility-editor" title={`Compatibility for ${item.title}`} close={() => { if (!busy) setEditing(false); }}><h2>Compatibility</h2>
       <p>{item.titleId ? `${item.titleId} · Applies to this title ID in My Library and Browse.` : 'No verified PPSA ID: applies to this library item only.'}</p><p>Saved on this computer. This does not submit a community report.</p>
       <CompatibilityResults item={item} /><p>Local results record the installed emulator build when available.</p>

@@ -57,6 +57,7 @@ internal sealed partial class OrbitFrontendApi : IDisposable
         var path = uri.AbsolutePath;
         if (method == "POST" && path == "/api/v1/windows/settings") return SettingsRequest(body);
         if (method == "POST" && path == "/api/v1/windows/igdb-settings") return SaveIgdbSettings(body);
+        if (method == "POST" && path is "/api/v1/windows/library/relink/search" or "/api/v1/windows/library/relink/link") return LibraryRelinkRequest(path, body);
         if (method == "POST" && path == "/api/v1/favorites") return Favorite(body);
         if (method == "POST" && path is "/api/v1/windows/log" or "/api/v1/windows/details" or "/api/v1/windows/compatibility" or "/api/v1/windows/delete/prepare" or "/api/v1/windows/delete/confirm") return LibraryRequest(path, body);
         if (method == "POST" && path is "/api/v1/windows/action" or "/api/v1/windows/release") return WindowsRequest(path, body);
@@ -139,7 +140,7 @@ internal sealed partial class OrbitFrontendApi : IDisposable
         model.CanDeleteDownload(job) ? "deleteDownload" : null
     }.OfType<string>().ToArray();
     internal string[] LibraryActions(LocalLibraryEntry item) => new[] {
-        "openFolder", "reinspect", !model.IsClearingDownloads && !model.IsExtracting && Path.GetExtension(item.ContentPath).ToLowerInvariant() is ".zip" or ".rar" ? "extract" : null, model.CanInstallItem(item) ? "installLibrary" : null,
+        "openFolder", "reinspect", "relink", !model.IsClearingDownloads && !model.IsExtracting && Path.GetExtension(item.ContentPath).ToLowerInvariant() is ".zip" or ".rar" ? "extract" : null, model.CanInstallItem(item) ? "installLibrary" : null,
         model.CanDeleteItem(item) ? "deleteLibrary" : null, model.CanLaunchItem(item) ? "launch" : null, model.CanLaunchItem(item) ? "chooseEmulator" : null,
         item.InstalledGame is not null ? "libraryDetails" : null, model.CanViewLaunchLog(item) ? "viewLog" : null
     }.OfType<string>().ToArray();
@@ -199,7 +200,7 @@ internal sealed partial class OrbitFrontendApi : IDisposable
         providerSessions = model.BrowserDownloads.Sessions.Where(session => session.Downloads.Count == 0)
             .Select(session => new { session.Id, session.Title, actions = new[] { "checkStatus" } }).ToArray(),
         library = model.LibraryView.Cast<LocalLibraryEntry>().Select(item => new { item.Id, title = model.LibraryDisplayTitle(item), item.Version, item.Integrity, item.Extraction, item.Classification,
-            platform = model.LibraryCatalogEntry(item)?.Platform ?? (model.LibraryTitleId(item).StartsWith("PPSA", StringComparison.OrdinalIgnoreCase) ? "PS5" : model.LibraryTitleId(item).StartsWith("CUSA", StringComparison.OrdinalIgnoreCase) ? "PS4" : ""),
+            platform = model.LibraryCatalogEntry(item)?.Platform ?? (model.LibraryTitleId(item).StartsWith("CUSA", StringComparison.OrdinalIgnoreCase) ? "PS4" : "PS5"),
             installedBytes = item.InstalledGame?.Size is > 0 ? item.InstalledGame.Size : (long?)null,
             titleId = model.LibraryTitleId(item), cover = LibraryArt(item.CoverUrl, model.LibraryCatalogEntry(item)?.CoverUrl),
             coverFallback = LibraryArt(item.CoverFallbackUrl, model.LibraryCatalogEntry(item)?.CoverFallbackUrl),
@@ -266,7 +267,7 @@ internal sealed partial class OrbitFrontendApi : IDisposable
                 var item = model.LibraryView.Cast<LocalLibraryEntry>().SingleOrDefault(entry => entry.Id == id);
                 if (item is null) return (404, new { error = "That library game is no longer available." });
                 var titleId = model.LibraryTitleId(item);
-                var platform = model.LibraryCatalogEntry(item)?.Platform ?? (titleId.StartsWith("CUSA", StringComparison.OrdinalIgnoreCase) ? "PS4" : titleId.StartsWith("PPSA", StringComparison.OrdinalIgnoreCase) ? "PS5" : "");
+                var platform = model.LibraryCatalogEntry(item)?.Platform ?? (titleId.StartsWith("CUSA", StringComparison.OrdinalIgnoreCase) ? "PS4" : "PS5");
                 var supported = platform.Equals("PS4", StringComparison.OrdinalIgnoreCase) ? backend == EmulatorBackend.ShadPS4 :
                     platform.Equals("PS5", StringComparison.OrdinalIgnoreCase) ? backend is EmulatorBackend.KytyPS5 or EmulatorBackend.SharpEmu : false;
                 if (!supported) return (409, new { error = "That emulator does not support this game's platform." });
