@@ -80,8 +80,8 @@ public partial class BrowserDownloadWindow : Window
             Diagnostics.Record("WindowClosed");
             browserLifetime.Cancel();
             if (Browser.CoreWebView2 is { } core) manager.Bandwidth?.Detach(core);
-            manager.ProviderWindowClosed(session);
             Browser.Dispose(); browserLifetime.Dispose();
+            manager.ProviderWindowClosed(session);
         };
     }
 
