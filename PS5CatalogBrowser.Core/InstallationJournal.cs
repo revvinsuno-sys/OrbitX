@@ -5,6 +5,7 @@ namespace PS5CatalogBrowser.Core;
 public sealed class InstallationJournal(string directory)
 {
     private static readonly JsonSerializerOptions Options = new() { WriteIndented = true };
+    private const string InterruptedGuidance = "Previous installation was interrupted. The original image was preserved. Retry to start a fresh installation attempt; incomplete staging is not resumed.";
     private string PathFor(string id)
     {
         if (!Guid.TryParseExact(id, "N", out _)) throw new InvalidDataException("Invalid installation job ID.");
@@ -28,7 +29,13 @@ public sealed class InstallationJournal(string directory)
             if (job.State is not (InstallationState.Completed or InstallationState.CompletedOriginalRetained or InstallationState.Failed or InstallationState.Cancelled or InstallationState.NeedsAttention))
             {
                 job.State = InstallationState.NeedsAttention;
-                job.Error = "Previous installation was interrupted. Original-image cleanup will never resume automatically. Review the mount and installation details.";
+                job.Error = InterruptedGuidance;
+                Save(job);
+            }
+            else if (job.State == InstallationState.NeedsAttention && job.Error.StartsWith("Previous installation was interrupted.", StringComparison.Ordinal) &&
+                !job.Error.Contains("Retry to start a fresh installation attempt", StringComparison.Ordinal))
+            {
+                job.Error = InterruptedGuidance;
                 Save(job);
             }
         return jobs;

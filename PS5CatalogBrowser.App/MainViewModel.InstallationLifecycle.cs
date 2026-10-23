@@ -18,10 +18,18 @@ public sealed partial class MainViewModel
     internal LocalLibraryEntry? InstallationItem(InstallationJob job) => Library.FirstOrDefault(item =>
         ImageFileSystem.SamePath(item.ContentPath, job.SourcePath) || ImageFileSystem.SamePath(item.DownloadPath, job.SourcePath) ||
         item.DownloadArtifacts.Any(artifact => ImageFileSystem.SamePath(artifact.Destination, job.SourcePath)));
-    internal bool CanRetryInstallation(InstallationJob job) => !InstallationFinished(job) && job.State is (InstallationState.Failed or InstallationState.Cancelled) &&
-        !job.Verified && !job.Registered && (!IsInstalling || CanInstallFile(job.SourcePath)) && !IsQueuedForInstallation(job.SourcePath) && !IsExtracting && !IsMovingContent && !IsClearingDownloads &&
-        (File.Exists(job.SourcePath) || Directory.Exists(job.SourcePath) || InstallationItem(job)?.ContentMove is { Phase: "Completed" });
-    internal bool CanDeleteInstallation(InstallationJob job) => !job.Registered && !job.Verified && CanRetryInstallation(job) && InstallationItem(job) is { } item && !IsInstalledLibraryItem(item) && CanDeleteItem(item);
+    internal bool CanRetryInstallation(InstallationJob job)
+    {
+        var interruptedBeforeVerification = job.State == InstallationState.NeedsAttention &&
+            job.Error.StartsWith("Previous installation was interrupted.", StringComparison.Ordinal) && !job.Verified && !job.Registered;
+        var failedAttempt = job.State is InstallationState.Failed or InstallationState.Cancelled;
+        return !InstallationFinished(job) && (failedAttempt || interruptedBeforeVerification) &&
+            !job.Verified && !job.Registered && (!IsInstalling || CanInstallFile(job.SourcePath)) && !IsQueuedForInstallation(job.SourcePath) && !IsExtracting && !IsMovingContent && !IsClearingDownloads &&
+            (File.Exists(job.SourcePath) || Directory.Exists(job.SourcePath) || InstallationItem(job)?.ContentMove is { Phase: "Completed" }) &&
+            (!interruptedBeforeVerification || CanInstallFile(job.SourcePath));
+    }
+    internal bool CanDeleteInstallation(InstallationJob job) => job.State is (InstallationState.Failed or InstallationState.Cancelled) &&
+        !job.Registered && !job.Verified && CanRetryInstallation(job) && InstallationItem(job) is { } item && !IsInstalledLibraryItem(item) && CanDeleteItem(item);
     internal async Task RetryInstallationAsync(InstallationJob job)
     {
         if (IsQueuedForInstallation(job.SourcePath)) { CancelQueuedInstallation(job.SourcePath); return; }
