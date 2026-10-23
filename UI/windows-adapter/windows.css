@@ -43,17 +43,16 @@
 .windows-launch-log { white-space: pre-wrap; overflow-wrap: anywhere; overflow: auto; max-height: 55vh; padding: 14px; background: #080c14; color: #e2e8f0; border: 1px solid #4c5566; border-radius: 8px; font: 12px/1.5 Consolas, monospace; user-select: text; }
 .windows-launch-log:focus-visible { outline: 3px solid #83b8ff; outline-offset: 3px; }
 /* The Windows library owns the cover grid; other Orbit screens retain their styles. */
-.windows-library { max-width: 1800px; color: var(--text, #f5f5f5); background: var(--night-1, #080808); min-height: 100%; }
+.windows-library { max-width: none; padding: 0 clamp(18px, 1vw, 24px) 28px; color: var(--text, #f5f5f5); background: var(--night-1, #080808); min-height: 100%; }
 .pn-shell:has(.windows-library) .pn-titles { display: none; }
-.library-header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; margin-bottom: 26px; }
-.library-eyebrow { font: 600 11px/1.5 system-ui, sans-serif; letter-spacing: .13em; color: #a8b6cb; margin: 0 0 6px !important; }
-.app .windows-library .library-header h1 { font-size: clamp(2.2rem, 4vw, 3rem); font-weight: 600; line-height: 1.15; margin: 0; letter-spacing: -.04em; text-transform: none; }
-.library-header h1 span { display: inline-block; font-size: 13px; letter-spacing: normal; color: #a8b6cb; margin-left: 12px; font-weight: 400; }
-.library-emulator { margin-left: auto !important; max-width: 100%; font-size: 12px; color: #a8b6cb; }
-.library-toolbar { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 12px; }
-.library-toolbar label { display: grid; gap: 6px; font-size: 12px; color: #b9c7dc; }
-.library-toolbar label:first-child { flex: 1 1 220px; }
-.library-toolbar input, .library-toolbar select { width: 100%; min-height: 44px; border: 1px solid #3d4b61; border-radius: 8px; padding: 10px 12px; background: #161e2c; color: #edf2fa; font: 14px system-ui, sans-serif; }
+.library-header { display: block; margin-bottom: 16px; }
+.library-heading { display: flex; align-items: baseline; gap: 16px; margin-bottom: 18px; }
+.app .windows-library .library-heading h1 { margin: 0; color: #f5f5f5; font-size: clamp(4rem, 8vw, 8rem); font-weight: 300; line-height: .95; letter-spacing: -.055em; text-transform: lowercase; }
+.library-heading > span { color: #858585; font-size: clamp(1rem, 1.6vw, 1.5rem); }
+.library-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.library-toolbar label { display: grid; gap: 6px; color: #aaa; font-size: 14px; }
+.library-toolbar label:first-child { flex: 1 1 260px; }
+.library-toolbar input, .library-toolbar select { width: 100%; min-height: 44px; border: 0; border-bottom: 2px solid #707070; border-radius: 0; padding: 10px 14px; background: #242526; color: #f5f5f5; font: 14px system-ui, sans-serif; }
 .library-compatibility-source { align-self: end; min-width: 0; margin: 0; padding: 0; border: 0; color: #b9c7dc; font-size: 12px; }
 .library-compatibility-source legend { padding: 0; margin-bottom: 6px; }
 .library-compatibility-source [role=radiogroup] { display: flex; }
@@ -61,13 +60,20 @@
 .library-compatibility-source button:first-child { border-radius: 8px 0 0 8px; }
 .library-compatibility-source button:last-child { border-radius: 0 8px 8px 0; border-left: 0; }
 .library-compatibility-source button[aria-pressed=true] { background: #263955; color: #fff; border-color: #83b8ff; }
-.library-cover-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 1.7rem var(--tile-gap, 1.4rem); align-items: start; }
+.library-cover-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 10rem), 1fr)); gap: 10px; align-items: start; }
 .windows-library-card { min-width: 0; position: relative; margin: 0; border: 0; padding: 0; background: transparent; }
-.library-play-surface { display: flex; flex-direction: column; gap: .25rem; width: 100%; padding: 0; border: 0; border-radius: 10px; background: transparent; color: #edf2fa; text-align: left; cursor: pointer; touch-action: pan-x; }
+.library-play-surface { display: flex; position: relative; flex-direction: column; gap: .25rem; width: 100%; aspect-ratio: 1 / 1; padding: 0; border: 0; border-radius: 0; background: transparent; color: #edf2fa; text-align: left; cursor: pointer; touch-action: pan-x; }
 .library-poster { display: block; position: relative; aspect-ratio: 1 / 1; background: linear-gradient(145deg, #233149, #111827); border: 1px solid #36445b; border-radius: 10px; overflow: hidden; box-shadow: 0 8px 20px #0004; transition: border-color 500ms ease, box-shadow 500ms ease; }
 .library-poster img { width: 100%; height: 100%; object-fit: cover; transition: opacity 500ms ease; }
 .library-poster img[src$="orbit.svg"] { object-fit: contain; padding: 22%; background: linear-gradient(145deg, #233149, #111827); }
 .library-card-title { display: block; font: 600 14px/1.4 system-ui, sans-serif; margin: 10px 3px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.library-play-surface .library-poster { position: absolute; inset: 0; width: 100%; height: 100%; aspect-ratio: auto; margin: 0; border: 0; border-radius: 0; box-shadow: none; }
+.library-play-surface .library-card-title { position: absolute; z-index: 2; inset: auto 10px 8px; margin: 0; color: #fff; opacity: 1; text-shadow: 0 1px 4px #000; }
+.library-play-surface::after { content: ""; position: absolute; inset: 45% 0 0; background: linear-gradient(transparent, #000b); pointer-events: none; }
+.pn-shell .windows-library .library-play-surface { width: 100%; min-width: 0; aspect-ratio: 1 / 1; }
+.pn-shell .windows-library .library-play-surface .library-poster { position: absolute; inset: 0; margin: 0; aspect-ratio: auto; }
+.pn-shell .windows-library .library-play-surface .library-card-title { position: absolute; inset: auto 10px 8px; opacity: 1; }
+.pn-shell .windows-library .library-play-surface::after { opacity: 1; }
 .library-play-surface:hover .library-poster { border-color: #9dbce9; box-shadow: 0 10px 30px #0008; }
 .library-play-surface[aria-disabled=true] .library-poster { opacity: .75; }
 .library-compatibility-halves { position: absolute; left: 8px; bottom: 8px; z-index: 3; width: 22px; height: 22px; }
@@ -122,5 +128,4 @@ body:has([role="dialog"], [role="alertdialog"]) > .library-preview { display: no
 @keyframes library-preview-in { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .library-preview { animation: none; } .library-poster, .library-poster img, .library-more-button { transition: none; } }
 @media (hover: none) { .library-more-button { opacity: 1; } }
-@media (max-width: 1000px) { .library-cover-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.4rem 1rem; } }
-@media (max-width: 500px) { .library-header h1 span { display: block; margin: 6px 0 0; } }
+@media (max-width: 500px) { .library-cover-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

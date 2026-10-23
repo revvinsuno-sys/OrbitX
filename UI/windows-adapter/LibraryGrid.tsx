@@ -143,8 +143,7 @@ export function LibraryGrid<T extends LibraryCardItem>({ items, action, children
     finally { launching.current = false; setPending(''); }
   }
   return <>
-    <header className="library-header"><div><p className="library-eyebrow">YOUR COLLECTION</p><h1>My Library <span>{items.length} installed</span></h1></div>
-      <p className="library-emulator">{items[0]?.currentKytyVersion || 'KytyPS5 version unavailable'}</p>
+    <header className="library-header"><div className="library-heading"><h1>library</h1><span>{items.length} games</span></div>
       <div className="library-toolbar"><label>Search library<input type="search" value={query} onChange={e => { cancelTimer(); setActive(''); setQuery(e.target.value); }} placeholder="Find a game" /></label>
         <label>Sort<select value={sort} onChange={e => { cancelTimer(); setActive(''); setSort(e.target.value); }}><option value="title">Title A–Z</option><option value="status">Compatibility</option></select></label>
         <label>Compatibility<select value={filter} onChange={e => { cancelTimer(); setActive(''); setFilter(e.target.value); }}><option value="">All results</option>{Object.entries(compatibilityStatuses).filter(([key]) => key !== 'unavailable').map(([key, info]) => <option key={key} value={key}>{info.label}</option>)}</select></label>
