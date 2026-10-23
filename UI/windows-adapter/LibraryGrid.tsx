@@ -153,6 +153,7 @@ export function LibraryGrid<T extends LibraryCardItem>({ items, action, children
         </div></fieldset>
       </div>
     </header>
+    <div className="section-heading library-results-heading"><h2>all games</h2><span>{visible.length} games</span></div>
     {error && <p role="alert">{error}</p>}
     <div className="library-cover-grid browse-grid" ref={grid} onKeyDown={event => {
       if (!event.key.startsWith('Arrow') || (event.target as Element).closest('[role="dialog"]')) return;
