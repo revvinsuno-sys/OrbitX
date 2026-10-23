@@ -57,7 +57,7 @@ public sealed class BrowserDownloadManager(Func<string> root, Func<IEnumerable<D
 
     public bool QueueVikingFile(CatalogEntry entry, DownloadMirror mirror, string selectionIdentity)
     {
-        var slotInUse = transfers.Count > 0 || Sessions.Any(session => session.Downloads.Any(job => job.State is "Queued" or "Downloading" or "Checking integrity" or "Downloaded" or "Imported"));
+        var slotInUse = Bandwidth?.IsBusy == true || transfers.Count > 0 || Sessions.Any(session => session.Downloads.Any(job => job.State is "Queued" or "Downloading" or "Checking integrity" or "Downloaded" or "Imported"));
         if (!IsVikingFile(mirror.BrowserUrl) || !slotInUse) return false;
         if (queuedProviders.Any(q => q.Job.SelectionIdentity == selectionIdentity))
             throw new IOException("This game is already queued for the provider download slot.");
@@ -67,7 +67,7 @@ public sealed class BrowserDownloadManager(Func<string> root, Func<IEnumerable<D
             {
                 var prepared = BrowserDownloadFiles.Prepare(entry, mirror, root(), name, jobs());
                 prepared.State = "Queued";
-                prepared.Error = "Waiting for the current browser download to finish and its provider window to close.";
+                prepared.Error = "Waiting for the shared download slot. The active transfer must finish first.";
                 prepared.Url = mirror.BrowserUrl;
                 return [prepared];
             }, accepted => added(accepted[0]), rejected => BrowserDownloadFiles.DiscardStaging(rejected[0]))[0];
@@ -83,8 +83,14 @@ public sealed class BrowserDownloadManager(Func<string> root, Func<IEnumerable<D
     public void ProviderWindowClosed(ProviderSession session)
     {
         Sessions.Remove(session);
-        if (Sessions.Count != 0 || queuedProviders.Count == 0 || session.Downloads.Count == 0 ||
-            session.Downloads.Any(job => IsActive(job) || job.State is not ("Downloaded" or "Imported"))) return;
+        TryStartQueuedProvider();
+    }
+
+    internal void SharedSlotReleased() => TryStartQueuedProvider();
+
+    private void TryStartQueuedProvider()
+    {
+        if (Sessions.Count != 0 || transfers.Count != 0 || Bandwidth?.IsBusy == true || queuedProviders.Count == 0) return;
         while (queuedProviders.TryDequeue(out var next))
         {
             if (next.Job.State != "Queued" || !admission.Owns(next.Job)) continue;
@@ -412,6 +418,7 @@ public sealed class BrowserDownloadManager(Func<string> root, Func<IEnumerable<D
         admission.Release(transfer.Job);
         transfer.Finished.TrySetResult();
         transfer.Report("OwnerReleased");
+        TryStartQueuedProvider();
     }
     public void Dispose()
     {

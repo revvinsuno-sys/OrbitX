@@ -1116,7 +1116,13 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
         }
         finally
         {
-            if (acquired) { Bandwidth.EndDirect(); reservedPaths.Remove(job.Destination); downloadGate.Release(); }
+            if (acquired)
+            {
+                Bandwidth.EndDirect();
+                BrowserDownloads.SharedSlotReleased();
+                reservedPaths.Remove(job.Destination);
+                downloadGate.Release();
+            }
             directTransfers.Remove(job.Id); cancellation.Dispose(); pauseRequests.Remove(job.Id); if (!restartingJobs.Contains(job.Id)) admission.Release(job);
             try
             {
