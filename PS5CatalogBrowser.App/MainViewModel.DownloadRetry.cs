@@ -8,15 +8,22 @@ public sealed partial class MainViewModel
     private readonly HashSet<string> retryingDownloads = [];
     private readonly HashSet<string> downloadLinkFailures = [];
     private readonly HashSet<string> storeRetryDownloads = [];
+    private bool CanReopenInterruptedBrowserJob(DownloadJob job) => job.Method == "Browser" && job.State == "Interrupted" &&
+        !restartingJobs.Contains(job.Id) && !WriterActive(job) && !DownloadCompletion.Unresolved(job) && !IsClearingDownloads &&
+        !IsMovingContent && SavedBrowserRelease(job) is not null;
     private bool FailedDownload(DownloadJob job) => job.State is "Failed" or "Interrupted" or "Integrity failed" or "Needs attention" or "Cleanup failed" or "Missing" ||
         job.ArchiveStatus == "Extraction failed" || Settings.Library.Any(item => item.Extraction == "Extraction failed" && item.DownloadArtifacts.Any(a => a.JobId == job.Id)) ||
         Installations.Any(installation => FailedInstallation(installation) && ImageFileSystem.SamePath(installation.SourcePath, job.Destination));
     private static bool FailedInstallation(InstallationJob job) => !job.IsCleared && !job.Registered && !job.Verified && job.State == InstallationState.Failed;
     internal DownloadJob? InstallationDownload(InstallationJob installation) => FailedInstallation(installation)
         ? Downloads.SingleOrDefault(job => ImageFileSystem.SamePath(job.Destination, installation.SourcePath)) : null;
-    internal bool CanRetryDownload(DownloadJob job) => Settings.Downloads.Contains(job) && !job.IsCleared && !retryingDownloads.Contains(job.Id) &&
-        !IsClearingDownloads && !IsExtracting && !IsInstalling && !IsMovingContent && !DownloadCompletion.Unresolved(job) && FailedDownload(job) &&
-        !directTransfers.ContainsKey(job.Id) && !restartingJobs.Contains(job.Id) && (!WriterActive(job) || BrowserDownloads.IsActive(job) && !BrowserDownloads.IsVerifying);
+    internal bool CanRetryDownload(DownloadJob job)
+    {
+        var reopenBrowser = CanReopenInterruptedBrowserJob(job);
+        return Settings.Downloads.Contains(job) && !job.IsCleared && !retryingDownloads.Contains(job.Id) &&
+            !IsClearingDownloads && (reopenBrowser || !IsExtracting && !IsInstalling && !IsMovingContent) && !DownloadCompletion.Unresolved(job) && FailedDownload(job) &&
+            !directTransfers.ContainsKey(job.Id) && !restartingJobs.Contains(job.Id) && (!WriterActive(job) || BrowserDownloads.IsActive(job) && !BrowserDownloads.IsVerifying);
+    }
     public bool CanRetrySelectedDownload => SelectedJob is { } job && CanRetryDownload(job);
 
     internal (CatalogEntry Entry, DownloadMirror Mirror)? SavedBrowserRelease(DownloadJob job)
