@@ -10,7 +10,7 @@ import { LibraryGrid } from './LibraryGrid';
 type ItemProgress = { id: string; kind: string; text: string; percentage: number | null; cancellable: boolean };
 type ItemFailure = { label: string; error: string; description: string };
 type RecordActions = { id: string; title: string; actions: string[]; progress?: ItemProgress; failure?: ItemFailure; installationStatus?: string; installLabel?: string };
-type Download = RecordActions & { state: string; error: string; archiveStatus: string; method: string; downloadedBytes: number; totalBytes?: number; percentage?: number; bytesPerSecond: number; fileName: string; installLabel: string };
+type Download = RecordActions & { state: string; error: string; archiveStatus: string; method: string; retryLabel: string; downloadedBytes: number; totalBytes?: number; percentage?: number; bytesPerSecond: number; fileName: string; installLabel: string };
 type LibraryItem = RecordActions & LibraryCardItem;
 type Installation = RecordActions & { cardId: string; fileName: string; state: string; error: string; totalBytes: number; cleanupResult: string };
 type Release = { title: string; provider: string; filename: string; version: string; format: string; size?: number; actions: string[]; downloadStatus?: 'queued' | 'downloading' | null; instructions: Record<string, string> };
@@ -45,12 +45,12 @@ function useWindows() {
   }, []);
   return { state, error };
 }
-function Actions({ actions, id = '', only, installLabel }: { actions: string[]; id?: string; only?: string[]; installLabel?: string }) {
+function Actions({ actions, id = '', only, installLabel, retryLabel }: { actions: string[]; id?: string; only?: string[]; installLabel?: string; retryLabel?: string }) {
   const [pending, setPending] = useState(false), [error, setError] = useState('');
   return <><div className="windows-actions">{actions.filter(action => !only || only.includes(action)).map(action =>
     <button key={action} disabled={pending} data-windows-action={action} onClick={async () => {
       setPending(true); setError(''); try { await act(action, id); } catch (e) { setError((e as Error).message); } finally { setPending(false); }
-    }}>{['installDownload', 'retryInstallation'].includes(action) && installLabel ? installLabel : labels[action] ?? action}</button>)}</div>{error && <p role="alert">{error}</p>}</>;
+    }}>{action === 'retryDownload' && retryLabel ? retryLabel : ['installDownload', 'retryInstallation'].includes(action) && installLabel ? installLabel : labels[action] ?? action}</button>)}</div>{error && <p role="alert">{error}</p>}</>;
 }
 function QueuedStatus({ status }: { status?: string }) {
   return status ? <span className="windows-badge windows-badge-queued" role="status">{status}</span> : null;
@@ -107,7 +107,7 @@ export function WindowsDownloads({ targetId }: { targetId: string | null }) {
 
       {state.providerSessions.map(session => <article className="windows-record" key={session.id} data-windows-id={session.id}><h2>{session.title}</h2><p>Provider browser open · waiting for a download offer</p><Actions id={session.id} actions={session.actions} /></article>)}
       {!state.downloads.length && !state.providerSessions.length && !state.installations.length && <p>No downloads yet. Open a game, choose a release, then select Download or Browser-assisted download.</p>}
-      {state.downloads.map(job => <TransferCard key={job.id} id={job.id} title={job.title}><p>{job.fileName} · {job.method}</p><p>{job.progress ? `${job.progress.kind} in progress` : <>{job.state} · {bytes(job.downloadedBytes)} / {job.totalBytes == null ? 'Size unknown' : bytes(job.totalBytes)}{job.bytesPerSecond > 0 ? ` · ${bytes(job.bytesPerSecond)}/s` : ''}</>}</p><Progress value={job.progress ? job.progress.percentage ?? undefined : ['Downloaded', 'Imported', 'Installed'].includes(job.state) ? 100 : job.percentage} label={job.progress ? `${job.progress.kind} progress` : `${job.title} download progress`} /><OperationProgress progress={job.progress} showBar={false} /><QueuedStatus status={job.installationStatus} /><FailureNotice failure={job.failure} />{job.archiveStatus && <span className="windows-badge" role="status">{job.archiveStatus}</span>}{job.error && <p role="alert">{job.error}</p>}<Actions id={job.id} actions={job.actions} installLabel={job.installLabel} /></TransferCard>)}
+      {state.downloads.map(job => <TransferCard key={job.id} id={job.id} title={job.title}><p>{job.fileName} · {job.method}</p><p>{job.progress ? `${job.progress.kind} in progress` : <>{job.state} · {bytes(job.downloadedBytes)} / {job.totalBytes == null ? 'Size unknown' : bytes(job.totalBytes)}{job.bytesPerSecond > 0 ? ` · ${bytes(job.bytesPerSecond)}/s` : ''}</>}</p><Progress value={job.progress ? job.progress.percentage ?? undefined : ['Downloaded', 'Imported', 'Installed'].includes(job.state) ? 100 : job.percentage} label={job.progress ? `${job.progress.kind} progress` : `${job.title} download progress`} /><OperationProgress progress={job.progress} showBar={false} /><QueuedStatus status={job.installationStatus} /><FailureNotice failure={job.failure} />{job.archiveStatus && <span className="windows-badge" role="status">{job.archiveStatus}</span>}{job.error && <p role="alert">{job.error}</p>}<Actions id={job.id} actions={job.actions} installLabel={job.installLabel} retryLabel={job.retryLabel} /></TransferCard>)}
       <Installations state={state} items={state.downloads} />
     </>}
   </section>;

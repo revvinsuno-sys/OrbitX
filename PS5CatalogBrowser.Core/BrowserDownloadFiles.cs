@@ -124,11 +124,15 @@ public static class BrowserDownloadFiles
         return !Directory.Exists(directory) && !File.Exists(directory);
     }
 
-    public static string InspectStaging(DownloadJob job) => job.Method == "Browser" && StagingIsMissing(job)
-        ? "Partial download files are missing. Retry opens the store item for a fresh download link."
-        : HasOwnedPartial(job)
-        ? "Incomplete files retained. Keep this record, or select Discard incomplete."
-        : "Owned partial files are missing. Select Discard incomplete to clear the record.";
+    public static string InspectStaging(DownloadJob job)
+    {
+        if (job.Method == "Browser" && StagingIsMissing(job))
+            return "Browser partial data is missing. Download again opens the provider for a fresh transfer; missing bytes cannot be resumed.";
+        if (HasOwnedPartial(job)) return "Incomplete files retained. Keep this record, or select Discard incomplete.";
+        return job.Method == "Browser"
+            ? "Browser partial data is missing. Download again starts a fresh provider transfer; it cannot resume missing bytes. Select Discard incomplete to clear this record."
+            : "Owned partial files are missing. Select Discard incomplete to clear the record.";
+    }
 
     public static bool HasOwnedPartial(DownloadJob job)
     {

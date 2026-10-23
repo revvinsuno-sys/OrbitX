@@ -142,9 +142,9 @@ internal sealed partial class OrbitFrontendApi : IDisposable
         "findDownloadGame",
         model.BrowserDownloads.CanCheckStatus(job.Id) ? "checkStatus" : null,
         job.CanPause ? "pause" : null, job.CanResume ? "resume" : null, model.CanCancelDownload(job) ? "cancel" : null,
-        model.CanRetryDownload(job) ? "retryDownload" : null, model.CanRestartDownload(job) && !model.CanRetryDownload(job) ? "restart" : null, model.CanDiscardDownload(job) && !model.CanDeleteDownload(job) ? "discard" : null,
+        model.CanRetryDownload(job) ? "retryDownload" : null, model.CanRestartDownload(job) && !model.CanRetryDownload(job) ? "restart" : null, model.CanDiscardDownload(job) ? "discard" : null,
         model.CanClearDownload(job) ? "clearDownload" : null, model.CanRunDownload(job) ? "installDownload" : null,
-        model.CanDeleteDownload(job) ? "deleteDownload" : null
+        model.DownloadDeletionItem(job) is not null ? "deleteDownload" : null
     }.OfType<string>().ToArray();
     internal string[] LibraryActions(LocalLibraryEntry item) => new[] {
         "openFolder", "reinspect", "relink", !model.IsClearingDownloads && !model.IsExtracting && Path.GetExtension(item.ContentPath).ToLowerInvariant() is ".zip" or ".rar" ? "extract" : null, model.CanInstallItem(item) ? "installLibrary" : null,
@@ -201,7 +201,7 @@ internal sealed partial class OrbitFrontendApi : IDisposable
             shadPS4 = new { available = model.ShadPS4Availability == "Executable found", availability = model.ShadPS4Availability } },
         downloads = model.Downloads.Where(model.ShowDownload).Select(job => {
             var metadata = model.DownloadMetadata(job);
-            return new { job.Id, title = metadata.Title, job.State, job.Error, archiveStatus = metadata.Status, method = job.Method == "Scan" ? "Local file" : job.Method, job.DownloadedBytes, totalBytes = job.TotalBytes ?? job.ExpectedSize,
+            return new { job.Id, title = metadata.Title, job.State, job.Error, archiveStatus = metadata.Status, method = job.Method == "Scan" ? "Local file" : job.Method, retryLabel = job.Method == "Browser" && !job.CanResume ? "Download again" : "Retry", job.DownloadedBytes, totalBytes = job.TotalBytes ?? job.ExpectedSize,
                 job.Percentage, job.BytesPerSecond, progress = ItemProgress(download: job), failure = ItemFailure(download: job), fileName = Path.GetFileName(job.Destination), installLabel = model.DownloadActionFor(job), installationStatus = model.InstallationQueueStatus(job.Destination), actions = DownloadActions(job) };
         }).ToArray(),
         providerSessions = model.BrowserDownloads.Sessions.Where(session => session.Downloads.Count == 0)
