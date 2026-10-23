@@ -117,7 +117,7 @@ function CompatibilityHalves({ item }: { item: LibraryCardItem }) {
 export function LibraryGrid<T extends LibraryCardItem>({ items, emulators, action, children }: {
   items: T[]; emulators: EmulatorChoices; action: (item: T, name: string, backend?: string) => Promise<void>; children: (item: T) => ReactNode;
 }) {
-  const [query, setQuery] = useState(''), [sort, setSort] = useState('title'), [filter, setFilter] = useState('');
+  const [query, setQuery] = useState(''), [sort, setSort] = useState('title'), [filter, setFilter] = useState(''), [platformFilter, setPlatformFilter] = useState('All');
   const [active, setActive] = useState(''), [managing, setManaging] = useState(''), [selecting, setSelecting] = useState(''), [pending, setPending] = useState(''), [error, setError] = useState('');
   const [compatibilitySource, setCompatibilitySource] = useState<'kyty' | 'local'>('kyty');
   const grid = useRef<HTMLDivElement>(null), timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined), launching = useRef(false);
@@ -154,7 +154,9 @@ export function LibraryGrid<T extends LibraryCardItem>({ items, emulators, actio
       card.focus({ preventScroll: true }); card.scrollIntoView({ block: 'nearest' });
     }
   }, [items.length]);
-  const visible = items.filter(item => item.title.toLocaleLowerCase().includes(query.toLocaleLowerCase()) && (!filter || libraryCompatibility(item, compatibilitySource).status === filter))
+  const visible = items.filter(item => item.title.toLocaleLowerCase().includes(query.toLocaleLowerCase()) &&
+    (platformFilter === 'All' || item.platform?.toUpperCase() === platformFilter) &&
+    (!filter || libraryCompatibility(item, compatibilitySource).status === filter))
     .sort((a, b) => sort === 'status' ? libraryCompatibility(a, compatibilitySource).label.localeCompare(libraryCompatibility(b, compatibilitySource).label) || a.title.localeCompare(b.title) : a.title.localeCompare(b.title));
   const selected = items.find(item => item.id === active), managed = items.find(item => item.id === managing);
   const anchor = active ? grid.current?.querySelector<HTMLElement>(`[data-windows-id="${active}"] .library-poster`) : null;
@@ -179,6 +181,10 @@ export function LibraryGrid<T extends LibraryCardItem>({ items, emulators, actio
   return <>
     <header className="library-header"><div className="library-heading"><h1>library</h1><span>{items.length} games</span></div>
       <div className="library-toolbar"><label>Search library<input type="search" value={query} onChange={e => { cancelTimer(); setActive(''); setQuery(e.target.value); }} placeholder="Find a game" /></label>
+        <fieldset className="library-platform-filter"><legend>Platform</legend><div role="group" aria-label="Library platform filter">
+          {(['All', 'PS4', 'PS5'] as const).map(platform => <button key={platform} type="button" aria-pressed={platformFilter === platform}
+            onClick={() => { cancelTimer(); setActive(''); setPlatformFilter(platform); }}>{platform}</button>)}
+        </div></fieldset>
         <label>Sort<select value={sort} onChange={e => { cancelTimer(); setActive(''); setSort(e.target.value); }}><option value="title">Title A–Z</option><option value="status">Compatibility</option></select></label>
         <label>Compatibility<select value={filter} onChange={e => { cancelTimer(); setActive(''); setFilter(e.target.value); }}><option value="">All results</option>{Object.entries(compatibilityStatuses).filter(([key]) => key !== 'unavailable').map(([key, info]) => <option key={key} value={key}>{info.label}</option>)}</select></label>
         <fieldset className="library-compatibility-source"><legend>Compatibility source</legend><div role="group" aria-label="Compatibility result source">
@@ -187,7 +193,7 @@ export function LibraryGrid<T extends LibraryCardItem>({ items, emulators, actio
         </div></fieldset>
       </div>
     </header>
-    <div className="section-heading library-results-heading"><h2>all games</h2><span>{visible.length} games</span></div>
+    <div className="section-heading library-results-heading"><h2>{platformFilter === 'All' ? 'all games' : `${platformFilter} games`}</h2><span>{visible.length} games</span></div>
     {error && <p role="alert">{error}</p>}
     <div className="library-cover-grid browse-grid" ref={grid} onKeyDown={event => {
       if (!event.key.startsWith('Arrow') || (event.target as Element).closest('[role="dialog"]')) return;
@@ -205,13 +211,16 @@ export function LibraryGrid<T extends LibraryCardItem>({ items, emulators, actio
     }}>
       {visible.map(item => {
         const result = libraryCompatibility(item, compatibilitySource);
+        const itemPlatform = item.platform?.toUpperCase();
         return <article key={item.id} className="windows-library-card" data-windows-id={item.id} data-expanded={active === item.id || undefined} data-own-arrows
           onPointerEnter={() => show(item.id, false)} onPointerLeave={leave}
           onFocus={() => show(item.id, true)} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget as Node)) leave(); }}>
           <CoverLaunch className="game-tile library-play-surface" data-windows-action="launch" aria-current={active === item.id ? 'true' : undefined} aria-disabled={!!pending || !item.actions.includes('launch')}
             aria-label={`${item.actions.includes('launch') ? 'Play' : 'Play unavailable for'} ${item.title}; ${result.source}: ${result.label}`}
             aria-describedby={active === item.id ? 'library-preview' : undefined} play={() => void play(item)} choose={() => selectEmulator(item)}>
-            <span className="cover library-poster"><Artwork src={item.cover} fallbackSrc={item.coverFallback} alt="" width="200" height="200" />
+            <span className="cover library-poster">{platformFilter === 'All' && (itemPlatform === 'PS4' || itemPlatform === 'PS5') &&
+              <span className={`library-platform-mark library-platform-mark-${itemPlatform.toLowerCase()}`} aria-label={`${itemPlatform} game`} title={`${itemPlatform} game`}>{itemPlatform}</span>}
+              <Artwork src={item.cover} fallbackSrc={item.coverFallback} alt="" width="200" height="200" />
               <CompatibilityHalves item={item} />
             </span><span className="tile-title library-card-title">{item.title}</span>
           </CoverLaunch>
