@@ -55,7 +55,8 @@ public partial class BrowserDownloadWindow : Window
         if (queuedJob is not null) accepted.Add(queuedJob);
         ChooseAnother.Visibility = unavailable is null ? Visibility.Collapsed : Visibility.Visible;
         var session = new BrowserDownloadManager.ProviderSession(Guid.NewGuid().ToString("N"), entry.Title, accepted, () =>
-        { WindowState = WindowState.Normal; Show(); Activate(); }, () => WindowState = WindowState.Minimized);
+        { WindowState = WindowState.Normal; Show(); Activate(); }, () => WindowState = WindowState.Minimized,
+        () => _ = Dispatcher.BeginInvoke(new Action(() => { if (IsLoaded) Close(); })));
         var initialized = false;
         Loaded += async (_, _) =>
         {

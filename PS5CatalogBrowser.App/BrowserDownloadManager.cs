@@ -10,7 +10,7 @@ public sealed class BrowserDownloadManager(Func<string> root, Func<IEnumerable<D
     Action<DownloadJob> added, Action<DownloadJob, LocalLibraryEntry?> changed, AppSettings settings, Action<AppSettings> persist,
     DownloadAdmission? sharedAdmission = null) : IDisposable
 {
-    public sealed record ProviderSession(string Id, string Title, List<DownloadJob> Downloads, Action Restore, Action Minimize);
+    public sealed record ProviderSession(string Id, string Title, List<DownloadJob> Downloads, Action Restore, Action Minimize, Action Close);
     private sealed record QueuedProvider(CatalogEntry Entry, DownloadMirror Mirror, DownloadJob Job);
     public System.Collections.ObjectModel.ObservableCollection<ProviderSession> Sessions { get; } = [];
     private readonly Queue<QueuedProvider> queuedProviders = new();
@@ -83,7 +83,6 @@ public sealed class BrowserDownloadManager(Func<string> root, Func<IEnumerable<D
     public void ProviderWindowClosed(ProviderSession session)
     {
         Sessions.Remove(session);
-        if (session.Downloads.Any(job => job.State is not ("Downloaded" or "Imported"))) return;
         TryStartQueuedProvider();
     }
 
@@ -91,7 +90,15 @@ public sealed class BrowserDownloadManager(Func<string> root, Func<IEnumerable<D
 
     private void TryStartQueuedProvider()
     {
-        if (Sessions.Count != 0 || transfers.Count != 0 || Bandwidth?.IsBusy == true || queuedProviders.Count == 0) return;
+        if (transfers.Count != 0 || queuedProviders.Count == 0) return;
+        var idleSessions = Sessions.Where(session => session.Downloads.Count > 0 &&
+            session.Downloads.All(job => !IsActive(job) && job.State is not ("Queued" or "Downloading" or "Checking integrity" or "Cancelling"))).ToArray();
+        if (idleSessions.Length > 0)
+        {
+            foreach (var session in idleSessions) session.Close();
+            return;
+        }
+        if (Bandwidth?.IsBusy == true || Sessions.Count != 0) return;
         while (queuedProviders.TryDequeue(out var next))
         {
             if (next.Job.State != "Queued" || !admission.Owns(next.Job)) continue;
