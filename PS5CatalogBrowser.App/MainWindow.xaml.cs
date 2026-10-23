@@ -18,6 +18,11 @@ public partial class MainWindow : Window
         InitializeComponent();
         try { model = new MainViewModel(settingsStore, orbitTransfer: orbitTransfer, keyClient: keyClient); DataContext = model; }
         catch (Exception ex) { MessageBox.Show("Cannot load settings: " + ex.Message, "OrbitX"); throw; }
+        model.BrowserDownloads.QueuedProviderReady += (entry, mirror, job) =>
+        {
+            if (windowClosed) return;
+            new BrowserDownloadWindow(entry, mirror, model.BrowserDownloads, queuedJob: job) { Owner = this }.Show();
+        };
         model.StartupLoading = true;
         ConfigureSettings();
         Deactivated += (_, _) => { coverConsumed = true; CancelCoverHold(); };
@@ -128,9 +133,15 @@ public partial class MainWindow : Window
     private void MirrorBrowser_Click(object sender, RoutedEventArgs e) => Run(() =>
     {
         var mirror = (DownloadMirror)((Button)sender).Tag;
-        DownloadAdmission.EnsureEnabled(model.SelectedEntry ?? throw new InvalidOperationException("Select a title."));
+        var entry = model.SelectedEntry ?? throw new InvalidOperationException("Select a title.");
+        DownloadAdmission.EnsureEnabled(entry);
         NetworkPolicy.Validate(mirror.BrowserUrl); model.SelectedMirror = mirror;
-        new BrowserDownloadWindow(model.SelectedEntry ?? throw new InvalidOperationException("Select a title."), mirror, model.BrowserDownloads) { Owner = this }.Show();
+        if (model.BrowserDownloads.QueueVikingFile(entry, mirror, DownloadAdmission.Capture(entry, mirror.Artifact)))
+        {
+            model.Status = entry.Title + " added to Downloads and queued for the VikingFile slot. The current provider window was minimized; the queued page will open after its download completes and its window is closed.";
+            return;
+        }
+        new BrowserDownloadWindow(entry, mirror, model.BrowserDownloads) { Owner = this }.Show();
     });
     private void AboutRepository_RequestNavigate(object sender, System.Windows.Navigation.RequestNavigateEventArgs e)
     {

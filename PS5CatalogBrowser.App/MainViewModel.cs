@@ -1153,7 +1153,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
         if (directTransfers.TryGetValue(job.Id, out var transfer)) { transfer.Cancellation.Cancel(); return; }
         if (BrowserDownloads.IsActive(job)) { BrowserDownloads.Cancel(job); return; }
         if (job.State == "Checking integrity") { Status = "Wait for file verification to finish."; return; }
-        if (job.State == "Queued") { job.State = "Cancelled"; job.Error = "Queued download cancelled before its transfer started."; admission.Release(job); Save(); Changed(nameof(Downloads)); Status = job.Error; return; }
+        if (job.State == "Queued") { BrowserDownloads.DiscardQueuedProvider(job); job.State = "Cancelled"; job.Error = "Queued download cancelled before its transfer started."; admission.Release(job); Save(); Changed(nameof(Downloads)); Status = job.Error; return; }
         Status = "No active transfer. Keep this record, clear completed history, or explicitly discard incomplete data.";
     }
     private void ClearDownloadRecord(DownloadJob job)

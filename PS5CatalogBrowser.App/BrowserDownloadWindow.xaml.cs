@@ -25,12 +25,15 @@ public partial class BrowserDownloadWindow : Window
     private readonly CancellationTokenSource browserLifetime = new();
     private bool closeAfterOffer;
     private readonly Action? unavailable;
+    private readonly DownloadJob? queuedJob;
+    private bool refreshQueuedPage;
+    private bool clickQueuedDownload;
     private bool fallbackRequested;
     internal ProviderFlowDiagnostics Diagnostics { get; }
     public TaskCompletionSource Ready { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     public BrowserDownloadWindow(CatalogEntry entry, DownloadMirror mirror, BrowserDownloadManager manager,
-        string? profile = null, Func<string, bool>? confirm = null, bool diagnostics = false, Action? unavailable = null)
+        string? profile = null, Func<string, bool>? confirm = null, bool diagnostics = false, Action? unavailable = null, DownloadJob? queuedJob = null)
     {
         DownloadAdmission.EnsureEnabled(entry);
         OrbitDownloadPolicy.ValidateSelection(entry, mirror.Artifact);
@@ -47,9 +50,12 @@ public partial class BrowserDownloadWindow : Window
         EnableDiagnostics.IsChecked = diagnostics;
         this.entry = entry; this.mirror = mirror; this.manager = manager; this.profile = profile ?? ProfilePath;
         this.unavailable = unavailable;
+        this.queuedJob = queuedJob;
+        refreshQueuedPage = queuedJob is not null;
+        if (queuedJob is not null) accepted.Add(queuedJob);
         ChooseAnother.Visibility = unavailable is null ? Visibility.Collapsed : Visibility.Visible;
         var session = new BrowserDownloadManager.ProviderSession(Guid.NewGuid().ToString("N"), entry.Title, accepted, () =>
-        { WindowState = WindowState.Normal; Show(); Activate(); });
+        { WindowState = WindowState.Normal; Show(); Activate(); }, () => WindowState = WindowState.Minimized);
         var initialized = false;
         Loaded += async (_, _) =>
         {
@@ -71,10 +77,10 @@ public partial class BrowserDownloadWindow : Window
         Closing += OnClosing;
         Closed += (_, _) =>
         {
-            manager.Sessions.Remove(session);
             Diagnostics.Record("WindowClosed");
             browserLifetime.Cancel();
             if (Browser.CoreWebView2 is { } core) manager.Bandwidth?.Detach(core);
+            manager.ProviderWindowClosed(session);
             Browser.Dispose(); browserLifetime.Dispose();
         };
     }
@@ -113,6 +119,19 @@ public partial class BrowserDownloadWindow : Window
             {
                 Diagnostics.Record("NavigationCompleted", core.Source, state: e.IsSuccess ? "Success" : e.WebErrorStatus.ToString(), navigationId: e.NavigationId);
                 NavigationCompleted(e.IsSuccess, e.WebErrorStatus, core.Source);
+                if (e.IsSuccess && refreshQueuedPage)
+                {
+                    refreshQueuedPage = false;
+                    clickQueuedDownload = true;
+                    PageStatus.Text = "Queued game opened. Refreshing the provider page before attempting its Download button.";
+                    core.Reload();
+                    return;
+                }
+                if (e.IsSuccess && clickQueuedDownload)
+                {
+                    clickQueuedDownload = false;
+                    _ = AttemptQueuedDownloadClickAsync(core);
+                }
                 // A navigation cancelled by a native file offer is normal. Only a provider HTTP error requests another release.
                 if (e.HttpStatusCode >= 400) RequestFreshRelease();
             };
@@ -171,6 +190,24 @@ public partial class BrowserDownloadWindow : Window
         }
     }
 
+    private async Task AttemptQueuedDownloadClickAsync(CoreWebView2 core)
+    {
+        try
+        {
+            await Task.Delay(750, browserLifetime.Token);
+            var result = await core.ExecuteScriptAsync("(() => { const visible = e => { const r=e.getBoundingClientRect(), s=getComputedStyle(e); return r.width>0 && r.height>0 && s.visibility!=='hidden' && s.display!=='none'; }; const label=e => (e.innerText || e.value || e.getAttribute('aria-label') || '').replace(/\\s+/g,' ').trim(); const matches=[...document.querySelectorAll('button,a,[role=button],input[type=button],input[type=submit]')].filter(e => visible(e) && /^download(?:\\s+(?:now|file))?$/i.test(label(e))); if(matches.length!==1) return matches.length ? 'ambiguous' : 'missing'; matches[0].click(); return 'clicked'; })()");
+            var outcome = System.Text.Json.JsonSerializer.Deserialize<string>(result);
+            PageStatus.Text = outcome switch
+            {
+                "clicked" => "Refreshed the queued provider page and attempted its Download button. Confirm any verification and review the offered file.",
+                "ambiguous" => "Provider page refreshed, but multiple Download buttons were found. Choose the correct one manually.",
+                _ => "Provider page refreshed, but no clear Download button was found. Continue manually."
+            };
+        }
+        catch (OperationCanceledException) { }
+        catch { PageStatus.Text = "Provider page refreshed. Automatic button detection was unavailable; continue manually."; }
+    }
+
     private void ChooseAnother_Click(object sender, RoutedEventArgs e) => RequestFreshRelease();
     internal void RequestFreshRelease()
     {
@@ -227,7 +264,7 @@ public partial class BrowserDownloadWindow : Window
     internal DownloadJob AcceptNativeDownload(string filename, INativeDownloadOperation operation) =>
         manager.Accept(entry, mirror, filename, operation, selectionIdentity, job =>
         {
-            accepted.Add(job);
+            if (!accepted.Contains(job)) accepted.Add(job);
             Diagnostics.Record("ApplicationAdmission", state: job.State);
         }, (job, phase, nativeState) =>
         {

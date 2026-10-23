@@ -10,8 +10,11 @@ public sealed class BrowserDownloadManager(Func<string> root, Func<IEnumerable<D
     Action<DownloadJob> added, Action<DownloadJob, LocalLibraryEntry?> changed, AppSettings settings, Action<AppSettings> persist,
     DownloadAdmission? sharedAdmission = null) : IDisposable
 {
-    public sealed record ProviderSession(string Id, string Title, List<DownloadJob> Downloads, Action Restore);
+    public sealed record ProviderSession(string Id, string Title, List<DownloadJob> Downloads, Action Restore, Action Minimize);
+    private sealed record QueuedProvider(CatalogEntry Entry, DownloadMirror Mirror, DownloadJob Job);
     public System.Collections.ObjectModel.ObservableCollection<ProviderSession> Sessions { get; } = [];
+    private readonly Queue<QueuedProvider> queuedProviders = new();
+    public event Action<CatalogEntry, DownloadMirror, DownloadJob>? QueuedProviderReady;
     internal bool CanCheckStatus(string id) => Sessions.Any(session => session.Id == id || session.Downloads.Any(job => job.Id == id));
     internal void CheckStatus(string id) => Sessions.Single(session => session.Id == id || session.Downloads.Any(job => job.Id == id)).Restore();
     internal DownloadBandwidthCoordinator? Bandwidth { get; set; }
@@ -52,6 +55,53 @@ public sealed class BrowserDownloadManager(Func<string> root, Func<IEnumerable<D
     public bool IsActive(DownloadJob job) => transfers.ContainsKey(job.Id) || importWriters.ContainsKey(job.Id);
     public bool ShuttingDown { get; private set; }
 
+    public bool QueueVikingFile(CatalogEntry entry, DownloadMirror mirror, string selectionIdentity)
+    {
+        var slotInUse = transfers.Count > 0 || Sessions.Any(session => session.Downloads.Any(job => job.State is "Queued" or "Downloading" or "Checking integrity" or "Downloaded" or "Imported"));
+        if (!IsVikingFile(mirror.BrowserUrl) || !slotInUse) return false;
+        if (queuedProviders.Any(q => q.Job.SelectionIdentity == selectionIdentity))
+            throw new IOException("This game is already queued for the provider download slot.");
+        var name = mirror.ExpectedFileName.Length > 0 ? mirror.ExpectedFileName : entry.Title + ".download";
+        var job = admission.Admit([selectionIdentity],
+            () =>
+            {
+                var prepared = BrowserDownloadFiles.Prepare(entry, mirror, root(), name, jobs());
+                prepared.State = "Queued";
+                prepared.Error = "Waiting for the current browser download to finish and its provider window to close.";
+                prepared.Url = mirror.BrowserUrl;
+                return [prepared];
+            }, accepted => added(accepted[0]), rejected => BrowserDownloadFiles.DiscardStaging(rejected[0]))[0];
+        queuedProviders.Enqueue(new(entry, mirror, job));
+        foreach (var session in Sessions) session.Minimize();
+        return true;
+    }
+
+    public static bool IsVikingFile(string url) => Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
+        uri.Host.Equals("vikingfile.com", StringComparison.OrdinalIgnoreCase) ||
+        Uri.TryCreate(url, UriKind.Absolute, out uri) && uri.Host.Equals("www.vikingfile.com", StringComparison.OrdinalIgnoreCase);
+
+    public void ProviderWindowClosed(ProviderSession session)
+    {
+        Sessions.Remove(session);
+        if (Sessions.Count != 0 || queuedProviders.Count == 0 || session.Downloads.Count == 0 ||
+            session.Downloads.Any(job => IsActive(job) || job.State is not ("Downloaded" or "Imported"))) return;
+        while (queuedProviders.TryDequeue(out var next))
+        {
+            if (next.Job.State != "Queued" || !admission.Owns(next.Job)) continue;
+            QueuedProviderReady?.Invoke(next.Entry, next.Mirror, next.Job);
+            break;
+        }
+    }
+
+    public void DiscardQueuedProvider(DownloadJob job)
+    {
+        if (!queuedProviders.Any(item => ReferenceEquals(item.Job, job))) return;
+        var remaining = queuedProviders.Where(item => !ReferenceEquals(item.Job, job)).ToArray();
+        queuedProviders.Clear();
+        foreach (var item in remaining) queuedProviders.Enqueue(item);
+        BrowserDownloadFiles.DiscardStaging(job);
+    }
+
     public DownloadJob Accept(CatalogEntry entry, DownloadMirror mirror, string suggestedName, CoreWebView2DownloadOperation operation, string? selectionIdentity = null)
         => Accept(entry, mirror, suggestedName, new NativeDownloadOperation(operation), selectionIdentity);
 
@@ -66,9 +116,13 @@ public sealed class BrowserDownloadManager(Func<string> root, Func<IEnumerable<D
         if (operation.TotalBytesToReceive is > long.MaxValue) throw new IOException("Browser download size is too large.");
         if (operation.TotalBytesToReceive is ulong total && total > 0 && new DriveInfo(Path.GetPathRoot(Path.GetFullPath(root()))!).AvailableFreeSpace < (long)total)
             throw new IOException("Insufficient disk space for browser download.");
-        var job = admission.Admit([selectionIdentity ?? DownloadAdmission.Capture(entry, mirror.Artifact)],
-            () => [BrowserDownloadFiles.Prepare(entry, mirror, root(), suggestedName, jobs())],
-            accepted => added(accepted[0]), rejected => BrowserDownloadFiles.DiscardStaging(rejected[0]))[0];
+        var identity = selectionIdentity ?? DownloadAdmission.Capture(entry, mirror.Artifact);
+        var job = jobs().FirstOrDefault(candidate => candidate.State == "Queued" && candidate.SelectionIdentity == identity && admission.Owns(candidate));
+        if (job is null)
+            job = admission.Admit([identity],
+                () => [BrowserDownloadFiles.Prepare(entry, mirror, root(), suggestedName, jobs())],
+                accepted => added(accepted[0]), rejected => BrowserDownloadFiles.DiscardStaging(rejected[0]))[0];
+        var queuedJob = job.State == "Queued";
         var transfer = new Transfer(job, operation) { Observe = observe };
         transfer.ProgressHandler = (_, _) =>
         {
@@ -87,6 +141,7 @@ public sealed class BrowserDownloadManager(Func<string> root, Func<IEnumerable<D
         {
             // Associate the window before any native subscription/notification can fail.
             owned?.Invoke(job);
+            if (queuedJob) { job.State = "Downloading"; job.Error = ""; changed(job, null); }
             operation.BytesReceivedChanged += transfer.ProgressHandler;
             operation.EstimatedEndTimeChanged += transfer.ProgressHandler;
             operation.StateChanged += transfer.StateHandler;
