@@ -83,6 +83,7 @@ public sealed class BrowserDownloadManager(Func<string> root, Func<IEnumerable<D
     public void ProviderWindowClosed(ProviderSession session)
     {
         Sessions.Remove(session);
+        if (session.Downloads.Any(job => job.State is not ("Downloaded" or "Imported"))) return;
         TryStartQueuedProvider();
     }
 
