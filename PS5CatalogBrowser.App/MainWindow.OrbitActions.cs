@@ -66,7 +66,7 @@ public partial class MainWindow
                 else DeleteLibrary_Click(this, new());
                 break;
             case "launch": await LaunchGameAsync(false); break;
-            case "chooseEmulator": await LaunchGameAsync(true); break;
+            case "chooseEmulator": await LaunchGameAsync(request.Emulator is null, request.Emulator); break;
             case "libraryDetails": InstallationDetails_Click(new Button { Content = "Installation details" }, new()); break;
             case "installationDetails": InstallationDetails_Click(new Button(), new()); break;
             case "retryCleanup": RetryCleanup_Click(this, new()); break;

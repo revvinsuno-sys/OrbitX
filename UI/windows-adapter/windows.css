@@ -95,28 +95,27 @@
 .windows-library-card[data-expanded=true] .library-card-title { display: none; }
 .windows-library-card[data-expanded=true] .library-more-button { right: 8px; }
 .windows-library :is(button, input, select, summary):focus-visible, .library-play-surface:focus-visible, .library-more-button:focus-visible { outline: 3px solid #9cc6ff; outline-offset: 4px; }
-.library-preview { position: fixed; z-index: 150; display: flex; flex-direction: column; overflow: auto; padding: clamp(14px, 2vw, 24px); border: 1px solid #607799; border-radius: 10px; background: radial-gradient(120% 110% at 100% 0, #1d3150e8 0, #101c31e8 56%, #0b1729e8 100%); color: #edf2fa; box-shadow: 0 12px 32px #0009; overflow-wrap: anywhere; animation: library-preview-in 500ms ease both; }
+.library-preview { position: fixed; z-index: 150; display: flex; flex-direction: column; overflow: hidden; padding: 8px; border: 1px solid #607799; border-radius: 10px; background: radial-gradient(120% 110% at 100% 0, #1d3150e8 0, #101c31e8 56%, #0b1729e8 100%); color: #edf2fa; box-shadow: 0 12px 32px #0009; overflow-wrap: anywhere; animation: library-preview-in 500ms ease both; }
 body:has([role="dialog"], [role="alertdialog"]) > .library-preview { display: none; }
-.library-preview h2 { margin: 2px 0 4px; font: 700 clamp(15px, 1.3vw, 19px)/1.15 system-ui, sans-serif; letter-spacing: -.025em; }
-.library-preview p { margin: 0; font: 13px/1.5 system-ui, sans-serif; color: #d4dfef; }
-.library-preview .library-compatibility-pill { display: inline-flex; align-items: center; align-self: flex-start; gap: 8px; max-width: 100%; margin: 0 0 14px; padding: 7px 12px; border: 1px solid #607799; border-radius: 999px; background: #0c1422aa; font-size: clamp(13px, 1.25vw, 18px); line-height: 1.3; }
-.library-compatibility-pill .library-source-dot { flex: 0 0 auto; width: 11px; height: 11px; margin: 0; }
+.library-preview h2 { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; margin: 0; font: 700 clamp(11px, 1.05vw, 15px)/1.08 system-ui, sans-serif; letter-spacing: -.025em; }
+.library-preview p { margin: 0; font: 11px/1.2 system-ui, sans-serif; color: #d4dfef; }
+.library-preview .library-compatibility-pill { display: inline-flex; align-items: center; align-self: flex-start; gap: 5px; max-width: 100%; margin: 0; padding: 3px 7px; border: 1px solid #607799; border-radius: 999px; background: #0c1422aa; font-size: 11px; line-height: 1.2; }
+.library-compatibility-pill .library-source-dot { flex: 0 0 auto; width: 8px; height: 8px; margin: 0; }
 .library-compatibility-older { border-color: #7f1d1d !important; box-shadow: inset 0 0 0 1px #7f1d1d; }
-.library-preview { gap: 10px; }
-.library-preview .library-compatibility-pill { margin-bottom: 0; }
-.library-preview-actions { display: flex; flex-direction: column; align-items: stretch; gap: 6px; margin-top: auto; padding-top: 12px; }
-.library-preview-actions button { min-height: 44px; border: 0; cursor: pointer; font: 600 15px system-ui, sans-serif; }
-.library-preview-play { display: flex; flex: 0 0 auto; align-items: center; gap: 8px; padding: 4px 8px 4px 4px; background: transparent; color: #f4f7fc; text-align: left; }
-.library-preview-play .library-play-glyph { display: grid; flex: 0 0 38px; place-items: center; width: 38px; height: 38px; border: 3px solid #1d6946; border-radius: 50%; background: #35d07f; color: #082719; font: 800 19px/1 system-ui, sans-serif; box-shadow: inset 0 0 0 1px #a8ffd0; }
-.library-preview-actions strong { font-size: 15px; line-height: 1.25; }
+.library-preview { gap: 4px; }
+.library-preview-actions { display: flex; flex-direction: column; align-items: stretch; gap: 2px; margin-top: 0; padding-top: 2px; }
+.library-preview-actions button { min-height: 28px; border: 0; cursor: pointer; font: 600 13px system-ui, sans-serif; }
+.library-preview-play { display: flex; flex: 0 0 auto; align-items: center; gap: 5px; padding: 1px 4px; background: transparent; color: #f4f7fc; text-align: left; }
+.library-preview-play .library-play-glyph { display: grid; flex: 0 0 26px; place-items: center; width: 26px; height: 26px; border: 2px solid #1d6946; border-radius: 50%; background: #35d07f; color: #082719; font: 800 15px/1 system-ui, sans-serif; box-shadow: inset 0 0 0 1px #a8ffd0; }
+.library-preview-actions strong { font-size: 13px; line-height: 1.1; }
 .library-preview-play:disabled { opacity: .55; cursor: default; }
-.library-preview-control { display: flex; flex: 0 0 auto; align-items: center; gap: 8px; min-width: 0; padding: 4px 8px 4px 4px; background: transparent; color: #f4f7fc; text-align: left; }
-.library-preview-control > span { display: grid; flex: 0 0 38px; place-items: center; width: 38px; height: 38px; border: 3px solid #225d98; border-radius: 50%; background: #46a5ff; color: #071f36; font: 800 19px/1 system-ui, sans-serif; box-shadow: inset 0 0 0 1px #bce2ff; }
+.library-preview-control { display: flex; flex: 0 0 auto; align-items: center; gap: 5px; min-width: 0; padding: 1px 4px; background: transparent; color: #f4f7fc; text-align: left; }
+.library-preview-control > span { display: grid; flex: 0 0 26px; place-items: center; width: 26px; height: 26px; border: 2px solid #225d98; border-radius: 50%; background: #46a5ff; color: #071f36; font: 800 15px/1 system-ui, sans-serif; box-shadow: inset 0 0 0 1px #bce2ff; }
 .library-preview-control:disabled { opacity: .5; cursor: default; }
 .library-preview-menu > span { border-color: #947019; background: #ffd54a; color: #362800; box-shadow: inset 0 0 0 1px #fff0ac; }
 .library-preview-control:focus-visible, .library-preview-play:focus-visible { outline: 3px solid #9cc6ff; outline-offset: 3px; }
 .library-source-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; }
-.library-unavailable { color: #ffcf9e !important; }
+.library-unavailable { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; color: #ffcf9e !important; font-size: 10px !important; }
 .library-tools { margin-top: 36px; padding-top: 18px; border-top: 1px solid #344159; color: #b9c7dc; }
 .library-tools summary { min-height: 44px; cursor: pointer; }
 .library-management { padding: 12px; }
@@ -129,6 +128,22 @@ body:has([role="dialog"], [role="alertdialog"]) > .library-preview { display: no
 .library-compatibility-editor select { display: block; width: min(100%, 360px); min-height: 44px; margin: 8px 0 16px; padding: 10px 12px; color-scheme: dark; color: #edf2fa; background: #182234; border: 1px solid #8799b5; border-radius: 8px; font: 14px/1.5 system-ui, sans-serif; }
 .library-compatibility-editor select option { color: #edf2fa; background: #182234; }
 .library-delete-section { border-top: 1px solid #536177; padding-top: 20px; }
+.windows-emulator-modal { width: min(100%, 42rem); max-width: 42rem; max-height: calc(100vh - 2rem); padding: clamp(20px, 3vw, 36px); }
+.windows-emulator-picker > h2 { margin: 0 3rem 8px 0; font-size: clamp(1.5rem, 3vw, 2rem); font-weight: 400; }
+.windows-emulator-picker > p { margin: 0 0 18px; color: #b8c0cd; }
+.windows-emulator-picker > p span { margin-left: 8px; color: #7d8797; }
+.windows-emulator-choices { display: grid; gap: 8px; }
+.windows-emulator-choices button { display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%; min-height: 66px; padding: 10px 16px; border: 1px solid #42464e; border-radius: 3px; background: #242526; color: #f5f5f5; text-align: left; transition: background 500ms ease, border-color 500ms ease; }
+.windows-emulator-choices button:hover:not(:disabled), .windows-emulator-choices button:focus-visible { border-color: #9cc6ff; background: #30343b; }
+.windows-emulator-choices button:focus-visible, .windows-emulator-cancel:focus-visible { outline: 3px solid #9cc6ff; outline-offset: 3px; }
+.windows-emulator-choices button:disabled { opacity: .55; cursor: not-allowed; }
+.windows-emulator-choice-name { display: grid; gap: 4px; }
+.windows-emulator-choice-name strong { font-size: 1rem; }
+.windows-emulator-choice-name small { color: #a6adba; font-size: .78rem; }
+.windows-emulator-choice-compatibility { display: grid; gap: 4px; justify-items: end; color: #a6adba; font-size: .72rem; }
+.windows-emulator-choice-compatibility strong { color: #f5f5f5; font-size: .9rem; }
+.windows-emulator-cancel { width: 100%; min-height: 44px; margin-top: 14px; border: 1px solid #555b66; border-radius: 3px; background: transparent; color: #e5e7eb; transition: background 500ms ease, border-color 500ms ease; }
+.windows-emulator-cancel:hover { border-color: #9cc6ff; background: #30343b; }
 @keyframes library-preview-in { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .library-preview { animation: none; } .library-poster, .library-poster img, .library-more-button { transition: none; } }
 @media (hover: none) { .library-more-button { opacity: 1; } }

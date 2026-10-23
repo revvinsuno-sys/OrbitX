@@ -12,15 +12,15 @@ namespace PS5CatalogBrowser.App;
 public partial class MainWindow
 {
     private bool launchInteraction;
-    private async Task LaunchGameAsync(bool chooseEmulator)
+    private async Task LaunchGameAsync(bool chooseEmulator, EmulatorBackend? selectedEmulator = null)
     {
         if (launchInteraction) return;
         launchInteraction = true;
         try
         {
             var item = model.SelectedLibraryEntry ?? throw new InvalidOperationException("Select a library item.");
-            EmulatorBackend? backend = null;
-            if (chooseEmulator)
+            var backend = selectedEmulator;
+            if (chooseEmulator && backend is null)
             {
                 var dialog = new EmulatorSelectionDialog(item.Title, model) { Owner = this };
                 var selected = dialog.ShowDialog() == true;

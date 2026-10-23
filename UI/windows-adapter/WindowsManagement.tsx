@@ -14,7 +14,8 @@ type Download = RecordActions & { state: string; error: string; archiveStatus: s
 type LibraryItem = RecordActions & LibraryCardItem;
 type Installation = RecordActions & { cardId: string; fileName: string; state: string; error: string; totalBytes: number; cleanupResult: string };
 type Release = { title: string; provider: string; filename: string; version: string; format: string; size?: number; actions: string[]; instructions: Record<string, string> };
-type State = { status: string; scanning: boolean; scanStatus: string; downloadRoot: string; extraction: string; extractionPercentage: number; installation: string; installationProgress: string; installationPercentage: number; actions: string[]; downloads: Download[]; providerSessions: RecordActions[]; library: LibraryItem[]; installations: Installation[] };
+type EmulatorAvailability = { available: boolean; availability: string };
+type State = { status: string; scanning: boolean; scanStatus: string; downloadRoot: string; extraction: string; extractionPercentage: number; installation: string; installationProgress: string; installationPercentage: number; actions: string[]; emulators: { kytyPS5: EmulatorAvailability; sharpEmu: EmulatorAvailability; shadPS4: EmulatorAvailability }; downloads: Download[]; providerSessions: RecordActions[]; library: LibraryItem[]; installations: Installation[] };
 const labels: Record<string, string> = {
   findDownloadGame: 'Find game',
   checkStatus: 'Check status', cancelContentMove: 'Cancel verification',
@@ -27,7 +28,7 @@ const labels: Record<string, string> = {
   settings: 'Settings', refresh: 'Refresh catalogues',
   cancelQueuedInstallation: 'Cancel Install',
 };
-async function act(action: string, id = '') { await api('/windows/action', { action, id }); window.dispatchEvent(new Event('windows-state-changed')); }
+async function act(action: string, id = '', backend?: string) { await api('/windows/action', { action, id, ...(backend ? { backend } : {}) }); window.dispatchEvent(new Event('windows-state-changed')); }
 function useWindows() {
   const [state, setState] = useState<State | null>(null), [error, setError] = useState('');
   useEffect(() => {
@@ -115,7 +116,7 @@ export function WindowsLibrary() {
   const { state, error } = useWindows();
   return <section className="page windows-management windows-library" aria-label="My Library">
     {error && <p role="alert">{error}</p>}{!state ? <p>Loading library…</p> : <>
-      <LibraryGrid items={state.library} action={(item, name) => act(name, item.id)}>{item => <><OperationProgress progress={item.progress} /><QueuedStatus status={item.installationStatus} /><FailureNotice failure={item.failure} /></>}</LibraryGrid>
+      <LibraryGrid items={state.library} emulators={state.emulators} action={(item, name, backend) => act(name, item.id, backend)}>{item => <><OperationProgress progress={item.progress} /><QueuedStatus status={item.installationStatus} /><FailureNotice failure={item.failure} /></>}</LibraryGrid>
       <details className="library-tools"><summary>Library tools and installation activity</summary><Actions actions={state.actions} only={['addFolder', 'addElf', 'settings']} /><p role="status">{state.status}</p><Installations state={state} items={state.library} /></details>
     </>}
   </section>;

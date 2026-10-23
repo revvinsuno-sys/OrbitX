@@ -2,10 +2,38 @@ import { CoverLaunch } from "./CoverLaunch";
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Artwork } from '../orbit-upstream/src/Artwork';
+import { Modal } from '../orbit-upstream/src/components';
 import { LibraryCard, type LibraryCardItem } from './LibraryCard';
 import { libraryCompatibility, compatibilityStatuses, badgeLabel, statusColor } from './Compatibility';
 
 let rememberedGame = '';
+
+type EmulatorAvailability = { available: boolean; availability: string };
+type EmulatorChoices = { kytyPS5: EmulatorAvailability; sharpEmu: EmulatorAvailability; shadPS4: EmulatorAvailability };
+
+function EmulatorChooser({ item, emulators, choose, close }: { item: LibraryCardItem; emulators: EmulatorChoices; choose: (backend: string) => void; close: () => void }) {
+  const platform = item.platform?.toUpperCase();
+  const choices = platform === 'PS4' ? [
+    { id: 'ShadPS4', name: 'shadPS4', availability: emulators.shadPS4, compatibility: 'No compatibility data available' },
+  ] : platform === 'PS5' ? [
+    { id: 'KytyPS5', name: 'KytyPS5', availability: emulators.kytyPS5,
+      compatibility: compatibilityStatuses[item.kytyLocalCompatibility as keyof typeof compatibilityStatuses]?.label ?? compatibilityStatuses[item.websiteCompatibility as keyof typeof compatibilityStatuses]?.label ?? 'Not tested' },
+    { id: 'SharpEmu', name: 'SharpEmu', availability: emulators.sharpEmu,
+      compatibility: badgeLabel(item.sharpEmuLocalCompatibility || item.sharpEmuOfficialCompatibility) },
+  ] : [];
+  const initialChoice = choices.find(choice => choice.availability.available)?.id;
+  return <Modal title={`Choose emulator for ${item.title}`} close={close} className="windows-emulator-modal">
+    <div className="windows-emulator-picker">
+      <h2>Choose emulator</h2><p>{item.title} <span>{platform || 'Platform unknown'}</span></p>
+      {choices.length ? <div className="windows-emulator-choices">{choices.map(choice => <button key={choice.id} type="button" disabled={!choice.availability.available}
+        data-initial-focus={choice.id === initialChoice ? true : undefined} onClick={() => choose(choice.id)}>
+        <span className="windows-emulator-choice-name"><strong>{choice.name}</strong><small>{choice.availability.availability}</small></span>
+        <span className="windows-emulator-choice-compatibility">Compatibility <strong>{choice.compatibility}</strong></span>
+      </button>)}</div> : <p role="status">No emulator is available for this game's platform.</p>}
+      <button type="button" className="windows-emulator-cancel" onClick={close}>Cancel</button>
+    </div>
+  </Modal>;
+}
 
 function Preview({ item, source, anchor, close, retain, dismiss, play, choose, manage, pending }: {
   item: LibraryCardItem; source: 'kyty' | 'local'; anchor: HTMLElement; close: () => void; retain: () => void; dismiss: () => void;
@@ -23,7 +51,7 @@ function Preview({ item, source, anchor, close, retain, dismiss, play, choose, m
       const style = getComputedStyle(heading);
       const baseSize = parseFloat(style.fontSize);
       const lineHeight = parseFloat(style.lineHeight) || baseSize * 1.15;
-      const maxHeight = lineHeight * 3;
+      const maxHeight = lineHeight * 2;
       if (heading.scrollHeight <= maxHeight) return;
 
       let low = 10, high = baseSize;
@@ -86,11 +114,11 @@ function CompatibilityHalves({ item }: { item: LibraryCardItem }) {
   </span>;
 }
 
-export function LibraryGrid<T extends LibraryCardItem>({ items, action, children }: {
-  items: T[]; action: (item: T, name: string) => Promise<void>; children: (item: T) => ReactNode;
+export function LibraryGrid<T extends LibraryCardItem>({ items, emulators, action, children }: {
+  items: T[]; emulators: EmulatorChoices; action: (item: T, name: string, backend?: string) => Promise<void>; children: (item: T) => ReactNode;
 }) {
   const [query, setQuery] = useState(''), [sort, setSort] = useState('title'), [filter, setFilter] = useState('');
-  const [active, setActive] = useState(''), [managing, setManaging] = useState(''), [pending, setPending] = useState(''), [error, setError] = useState('');
+  const [active, setActive] = useState(''), [managing, setManaging] = useState(''), [selecting, setSelecting] = useState(''), [pending, setPending] = useState(''), [error, setError] = useState('');
   const [compatibilitySource, setCompatibilitySource] = useState<'kyty' | 'local'>('kyty');
   const grid = useRef<HTMLDivElement>(null), timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined), launching = useRef(false);
   const activeRef = useRef(active); activeRef.current = active;
@@ -136,10 +164,16 @@ export function LibraryGrid<T extends LibraryCardItem>({ items, action, children
     try { await action(item, 'launch'); } catch (e) { setError((e as Error).message); }
     finally { launching.current = false; setPending(''); }
   }
-  async function choose(item: T) {
+  function selectEmulator(item: T) { cancelTimer(); setActive(''); setManaging(''); setSelecting(item.id); }
+  function closeEmulatorChooser() {
+    const id = selecting; setSelecting('');
+    requestAnimationFrame(() => grid.current?.querySelector<HTMLButtonElement>(`[data-windows-id="${id}"] .library-play-surface`)?.focus({ preventScroll: true }));
+  }
+  async function choose(item: T, backend: string) {
     if (launching.current || !item.actions.includes('chooseEmulator')) return;
-    launching.current = true; setPending(item.id); setError(''); cancelTimer(); setActive('');
-    try { await action(item, 'chooseEmulator'); } catch (e) { setError((e as Error).message); }
+    launching.current = true; setPending(item.id); setError('');
+    try { await action(item, 'chooseEmulator', backend); setSelecting(''); }
+    catch (e) { setError((e as Error).message); }
     finally { launching.current = false; setPending(''); }
   }
   return <>
@@ -176,7 +210,7 @@ export function LibraryGrid<T extends LibraryCardItem>({ items, action, children
           onFocus={() => show(item.id, true)} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget as Node)) leave(); }}>
           <CoverLaunch className="game-tile library-play-surface" data-windows-action="launch" aria-current={active === item.id ? 'true' : undefined} aria-disabled={!!pending || !item.actions.includes('launch')}
             aria-label={`${item.actions.includes('launch') ? 'Play' : 'Play unavailable for'} ${item.title}; ${result.source}: ${result.label}`}
-            aria-describedby={active === item.id ? 'library-preview' : undefined} play={() => void play(item)} choose={() => void choose(item)}>
+            aria-describedby={active === item.id ? 'library-preview' : undefined} play={() => void play(item)} choose={() => selectEmulator(item)}>
             <span className="cover library-poster"><Artwork src={item.cover} fallbackSrc={item.coverFallback} alt="" width="200" height="200" />
               <CompatibilityHalves item={item} />
             </span><span className="tile-title library-card-title">{item.title}</span>
@@ -186,10 +220,12 @@ export function LibraryGrid<T extends LibraryCardItem>({ items, action, children
       })}
     </div>
     {!visible.length && <p role="status">{items.length ? 'No games match these filters.' : 'No installed games yet. Install a completed download or add a local game folder.'}</p>}
-    {selected && anchor && !managing && !document.querySelector('[role="dialog"]') && <Preview item={selected} source={compatibilitySource} anchor={anchor} close={leave} retain={cancelTimer} dismiss={() => setActive('')}
-      choose={() => { void choose(selected as T); }}
+    {selected && anchor && !managing && !selecting && !document.querySelector('[role="dialog"]') && <Preview item={selected} source={compatibilitySource} anchor={anchor} close={leave} retain={cancelTimer} dismiss={() => setActive('')}
+      choose={() => selectEmulator(selected as T)}
       play={() => { void play(selected as T); }} manage={() => { cancelTimer(); setActive(''); setManaging(selected.id); }} pending={pending === selected.id} />}
-    {managed && <LibraryCard item={managed} action={name => action(managed, name)} close={() => {
+    {selecting && items.find(item => item.id === selecting) && <EmulatorChooser item={items.find(item => item.id === selecting)!} emulators={emulators}
+      choose={backend => { const item = items.find(value => value.id === selecting); if (item) void choose(item, backend); }} close={closeEmulatorChooser} />}
+    {managed && <LibraryCard item={managed} action={name => name === 'chooseEmulator' ? (selectEmulator(managed), Promise.resolve()) : action(managed, name)} close={() => {
       const id = managed.id; setManaging('');
       requestAnimationFrame(() => grid.current?.querySelector<HTMLButtonElement>(`[data-windows-id="${id}"] .library-more-button`)?.focus({ preventScroll: true }));
     }}>{children(managed)}</LibraryCard>}

@@ -188,6 +188,9 @@ internal sealed partial class OrbitFrontendApi : IDisposable
     private object WindowsState() => new {
         status = model.Status, scanning = model.IsScanningDownloads, scanStatus = model.ScanStatus, downloadRoot = model.DownloadRoot, extraction = model.ExtractionFeedback, extractionPercentage = model.ExtractionPercentage,
         installation = model.InstallationAvailability, installationProgress = model.InstallationProgressText, installationPercentage = model.InstallationPercentage, actions = GlobalActions,
+        emulators = new { kytyPS5 = new { available = model.EmulatorAvailability == "Executable found", availability = model.EmulatorAvailability },
+            sharpEmu = new { available = model.SharpEmuAvailability == "Executable found", availability = model.SharpEmuAvailability },
+            shadPS4 = new { available = model.ShadPS4Availability == "Executable found", availability = model.ShadPS4Availability } },
         downloads = model.Downloads.Where(model.ShowDownload).Select(job => {
             var metadata = model.DownloadMetadata(job);
             return new { job.Id, title = metadata.Title, job.State, job.Error, archiveStatus = metadata.Status, method = job.Method == "Scan" ? "Local file" : job.Method, job.DownloadedBytes, totalBytes = job.TotalBytes ?? job.ExpectedSize,
@@ -241,7 +244,7 @@ internal sealed partial class OrbitFrontendApi : IDisposable
             using var json = JsonDocument.Parse(body, new() { MaxDepth = 2 }); var root = json.RootElement;
             if (root.ValueKind != JsonValueKind.Object) return (400, new { error = "Invalid request schema." });
             var properties = root.EnumerateObject().ToArray();
-            if (properties.Select(p => p.Name).Distinct().Count() != properties.Length || properties.Any(p => p.Name is not ("action" or "id") || p.Value.ValueKind != JsonValueKind.String) ||
+            if (properties.Select(p => p.Name).Distinct().Count() != properties.Length || properties.Any(p => p.Name is not ("action" or "id" or "backend") || p.Value.ValueKind != JsonValueKind.String) ||
                 !root.TryGetProperty("id", out var idValue) || idValue.GetString() is not { Length: <= 100 } id) return (400, new { error = "Invalid action identity." });
             if (path.EndsWith("/release", StringComparison.Ordinal))
             {
@@ -252,11 +255,28 @@ internal sealed partial class OrbitFrontendApi : IDisposable
                         external = "Complete the download in your external browser, then return and choose Import completed file for this same release.",
                         import = "Choose the completed file matching this release. This app verifies it before registering it.", downloadAll = "Download the explicitly listed files for this catalogue entry. Follow each file on Downloads." } }) : (404, new { error = "That release is no longer available. Refresh the catalogue." });
             }
-            if (properties.Length != 2 || !root.TryGetProperty("action", out var actionValue)) return (400, new { error = "Invalid action schema." });
+            if (!root.TryGetProperty("action", out var actionValue)) return (400, new { error = "Invalid action schema." });
             var action = actionValue.GetString()!;
+            EmulatorBackend? backend = null;
+            if (root.TryGetProperty("backend", out var backendValue))
+            {
+                if (action != "chooseEmulator" || properties.Length != 3 || !Enum.TryParse<EmulatorBackend>(backendValue.GetString(), true, out var parsed) || !Enum.IsDefined(parsed))
+                    return (400, new { error = "Invalid emulator selection." });
+                backend = parsed;
+                var item = model.LibraryView.Cast<LocalLibraryEntry>().SingleOrDefault(entry => entry.Id == id);
+                if (item is null) return (404, new { error = "That library game is no longer available." });
+                var titleId = model.LibraryTitleId(item);
+                var platform = model.LibraryCatalogEntry(item)?.Platform ?? (titleId.StartsWith("CUSA", StringComparison.OrdinalIgnoreCase) ? "PS4" : titleId.StartsWith("PPSA", StringComparison.OrdinalIgnoreCase) ? "PS5" : "");
+                var supported = platform.Equals("PS4", StringComparison.OrdinalIgnoreCase) ? backend == EmulatorBackend.ShadPS4 :
+                    platform.Equals("PS5", StringComparison.OrdinalIgnoreCase) ? backend is EmulatorBackend.KytyPS5 or EmulatorBackend.SharpEmu : false;
+                if (!supported) return (409, new { error = "That emulator does not support this game's platform." });
+                var availability = backend switch { EmulatorBackend.KytyPS5 => model.EmulatorAvailability, EmulatorBackend.SharpEmu => model.SharpEmuAvailability, _ => model.ShadPS4Availability };
+                if (availability != "Executable found") return (409, new { error = availability });
+            }
+            else if (properties.Length != 2) return (400, new { error = "Invalid action schema." });
             if (!Allows(action, id)) return (409, new { error = "This action is no longer available. Refresh and select it again." });
             if (ActionRequested is null) return (503, new { error = "Windows controls are unavailable." });
-            ActionRequested.Invoke(new(action, id));
+            ActionRequested.Invoke(new(action, id, Emulator: backend));
             return (202, new { accepted = true });
         }
         catch (JsonException) { return (400, new { error = "Invalid action JSON." }); }
@@ -285,4 +305,4 @@ internal sealed partial class OrbitFrontendApi : IDisposable
     public void Dispose()
     { model.Entries.CollectionChanged -= Invalidate; model.Sources.CollectionChanged -= Invalidate; model.PropertyChanged -= ModelChanged; mediaLookup.Dispose(); }
 }
-internal sealed record OrbitFrontendAction(string Action, string Id, List<LibraryDeletionTarget>? DeletionTargets = null);
+internal sealed record OrbitFrontendAction(string Action, string Id, List<LibraryDeletionTarget>? DeletionTargets = null, EmulatorBackend? Emulator = null);
