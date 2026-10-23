@@ -13,7 +13,7 @@ function Preview({ item, source, anchor, close, retain, dismiss, play, choose, m
 }) {
   const panel = useRef<HTMLDivElement>(null);
   const title = useRef<HTMLHeadingElement>(null);
-  const [position, setPosition] = useState({ left: 0, top: 0, width: 0, height: 0, side: 'right' as 'left' | 'right' });
+  const [position, setPosition] = useState({ left: 0, top: 0, width: 0, height: 0 });
   const result = libraryCompatibility(item, source);
   useLayoutEffect(() => {
     const heading = title.current;
@@ -44,18 +44,13 @@ function Preview({ item, source, anchor, close, retain, dismiss, play, choose, m
     const place = () => {
       const rect = anchor.getBoundingClientRect();
       if (!anchor.isConnected || rect.bottom <= 0 || rect.top >= innerHeight) { dismiss(); return; }
-      const width = Math.min(rect.width, 360, innerWidth - 24), height = Math.min(rect.height, innerHeight - 24);
-      const side = rect.right + width <= innerWidth - 12 ? 'right' : 'left';
-      anchor.closest('.windows-library-card')?.setAttribute('data-preview-side', side);
-      const left = side === 'right' ? rect.right : rect.left - width;
-      setPosition({ side, width, height, left: Math.max(12, Math.min(left, innerWidth - width - 12)),
-        top: rect.top });
+      setPosition({ width: rect.width, height: rect.height, left: rect.left, top: rect.top });
     };
     place(); const observer = new ResizeObserver(place); observer.observe(panel.current!); observer.observe(anchor);
     window.addEventListener('resize', place); window.addEventListener('scroll', place, true);
     return () => { observer.disconnect(); window.removeEventListener('resize', place); window.removeEventListener('scroll', place, true); };
   }, [anchor, item.id]);
-  return createPortal(<div ref={panel} id="library-preview" className={`library-preview library-preview-${position.side}`} style={{ left: position.left, top: position.top, width: position.width || undefined, height: position.height || undefined }} data-library-preview={item.id}
+  return createPortal(<div ref={panel} id="library-preview" className="library-preview" style={{ left: position.left, top: position.top, width: position.width || undefined, height: position.height || undefined }} data-library-preview={item.id}
     onPointerEnter={retain} onPointerLeave={close} onFocus={retain} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget as Node)) close(); }} role="region" aria-label={`Preview of ${item.title}`}>
     <h2 ref={title}>{item.title}</h2>
     <p className={`library-compatibility-pill${result.older ? ' library-compatibility-older' : ''}`} style={{ color: result.color, borderColor: `${result.color}a6` }}>
@@ -160,7 +155,7 @@ export function LibraryGrid<T extends LibraryCardItem>({ items, action, children
       </div>
     </header>
     {error && <p role="alert">{error}</p>}
-    <div className="library-cover-grid" ref={grid} onKeyDown={event => {
+    <div className="library-cover-grid browse-grid" ref={grid} onKeyDown={event => {
       if (!event.key.startsWith('Arrow') || (event.target as Element).closest('[role="dialog"]')) return;
       const card = (event.target as HTMLElement).closest<HTMLElement>('.windows-library-card'); if (!card) return;
       event.preventDefault(); event.stopPropagation();
@@ -179,12 +174,12 @@ export function LibraryGrid<T extends LibraryCardItem>({ items, action, children
         return <article key={item.id} className="windows-library-card" data-windows-id={item.id} data-expanded={active === item.id || undefined} data-own-arrows
           onPointerEnter={() => show(item.id, false)} onPointerLeave={leave}
           onFocus={() => show(item.id, true)} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget as Node)) leave(); }}>
-          <CoverLaunch className="library-play-surface" data-windows-action="launch" aria-disabled={!!pending || !item.actions.includes('launch')}
+          <CoverLaunch className="game-tile library-play-surface" data-windows-action="launch" aria-current={active === item.id ? 'true' : undefined} aria-disabled={!!pending || !item.actions.includes('launch')}
             aria-label={`${item.actions.includes('launch') ? 'Play' : 'Play unavailable for'} ${item.title}; ${result.source}: ${result.label}`}
             aria-describedby={active === item.id ? 'library-preview' : undefined} play={() => void play(item)} choose={() => void choose(item)}>
-            <span className="library-poster"><Artwork src={item.cover} fallbackSrc={item.coverFallback} alt="" width="200" height="300" />
+            <span className="cover library-poster"><Artwork src={item.cover} fallbackSrc={item.coverFallback} alt="" width="200" height="200" />
               <CompatibilityHalves item={item} />
-            </span><span className="library-card-title">{item.title}</span>
+            </span><span className="tile-title library-card-title">{item.title}</span>
           </CoverLaunch>
           <button className="library-more-button" aria-label={`More actions for ${item.title}`} aria-haspopup="dialog" onClick={event => { event.stopPropagation(); cancelTimer(); setActive(''); setManaging(item.id); }}>•••</button>
         </article>;
