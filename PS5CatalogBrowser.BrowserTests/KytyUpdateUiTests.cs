@@ -35,7 +35,7 @@ internal static class KytyUpdateUiTests
             window.Show();
             await Wait(() => !model.IsCheckingKytyVersion && model.RepositoryKytyVersion == latest);
             var tabs = (TabControl)window.FindName("SettingsTabs"); ((TabItem)window.FindName("ClassicSettingsTab")).IsSelected = true;
-            tabs.Items.Cast<TabItem>().Single(tab => (string)tab.Header == "KytyPS5").IsSelected = true; window.UpdateLayout();
+            tabs.Items.Cast<TabItem>().Single(tab => (string)tab.Header == "Emulators").IsSelected = true; window.UpdateLayout();
             var update = (Button)window.FindName("UpdateKytyButton");
             Check(calls == 0 && model.CurrentKytyVersion == old + "-dirty" && update.IsEnabled, "startup only checks; differing versions enable the actual Update control");
             if (Environment.GetEnvironmentVariable("PS5_KYTY_UPDATE_EVIDENCE") is { Length: > 0 } evidence)

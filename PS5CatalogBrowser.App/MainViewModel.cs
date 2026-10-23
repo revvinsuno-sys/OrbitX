@@ -1522,21 +1522,26 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
             throw new IOException("Choose a launchable folder belonging to this library item.");
         ImageFileSystem.EnsureNoLinks(path);
         var backend = emulator ?? item.LastEmulator;
-        var executable = backend == EmulatorBackend.SharpEmu ? SharpEmuPath : EmulatorPath;
+        var executable = backend switch
+        {
+            EmulatorBackend.SharpEmu => SharpEmuPath,
+            EmulatorBackend.ShadPS4 => ShadPS4Path,
+            _ => EmulatorPath
+        };
         var launch = launcher.Launch(executable, path, LaunchLogDirectory, id =>
         {
             var previous = item.LastLaunchLogId;
             item.LastLaunchLogId = id;
             try { Save(); } catch { item.LastLaunchLogId = previous; throw; }
             Changed(nameof(CanViewSelectedLaunchLog)); Changed(nameof(Library));
-        }, Settings.KytyArguments, backend, Settings.SharpEmuFullscreen);
+        }, Settings.KytyArguments, backend, Settings.SharpEmuFullscreen, Settings.ShadPS4Fullscreen);
         GameStarted?.Invoke(item, backend);
         // Start returned a real child process; cancellation/validation/start failures never reach this write.
         var previousEmulator = item.LastEmulator;
         item.LastEmulator = backend;
         try { Save(); } catch { item.LastEmulator = previousEmulator; _ = ObserveGameExitAsync(launch, item, backend); throw; }
         Status = $"{backend} process started for {item.Title}; console output is being saved. Use View log to review it.";
-        NotifySharpEmu();
+        NotifySharpEmu(); NotifyShadPS4();
         _ = ObserveGameExitAsync(launch, item, backend);
     }
     public event Action<LocalLibraryEntry, EmulatorBackend>? GameStarted;
@@ -1559,7 +1564,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged, IDisposable
             if (Library.Contains(item)) SelectedLibraryEntry = item;
             Status = exitCode == 0 ? $"Returned to My Library from {item.Title}." :
                 $"{backend} exited for {item.Title} (code {exitCode}). Use View log for details.";
-            Changed(nameof(Library)); NotifySharpEmu();
+            Changed(nameof(Library)); NotifySharpEmu(); NotifyShadPS4();
             GameProcessExited?.Invoke(backend);
             GameExited?.Invoke(item);
         });

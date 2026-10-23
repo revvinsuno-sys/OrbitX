@@ -257,6 +257,8 @@ public sealed class AppSettings
     public List<string> ArchivePasswords { get; set; } = ArchiveExtraction.DefaultPasswords();
     public string EmulatorPath { get; set; } = "";
     public string SharpEmuPath { get; set; } = Path.Combine(SharpEmuUpdater.DefaultRoot, "installed", "SharpEmu.exe");
+    public string ShadPS4Path { get; set; } = ShadPS4Launcher.DefaultExecutable;
+    public bool ShadPS4Fullscreen { get; set; }
     public string SharpEmuAvailableRevision { get; set; } = "";
     public DateTimeOffset? SharpEmuLastCheck { get; set; }
     public string SharpEmuLastBuildLog { get; set; } = "";

@@ -30,12 +30,14 @@ public sealed class KytyLauncher
         return info;
     }
 
-    public LoggedLaunch Launch(string executable, string gamePath, string logDirectory, Action<string> logReady, KytyArgumentSettings? arguments = null, EmulatorBackend backend = EmulatorBackend.KytyPS5, bool sharpEmuFullscreen = false)
+    public LoggedLaunch Launch(string executable, string gamePath, string logDirectory, Action<string> logReady, KytyArgumentSettings? arguments = null,
+        EmulatorBackend backend = EmulatorBackend.KytyPS5, bool sharpEmuFullscreen = false, bool shadPS4Fullscreen = false)
     {
         var info = backend switch
         {
             EmulatorBackend.KytyPS5 => BuildStartInfo(executable, gamePath, arguments: arguments),
             EmulatorBackend.SharpEmu => SharpEmuLauncher.BuildStartInfo(executable, gamePath, sharpEmuFullscreen),
+            EmulatorBackend.ShadPS4 => ShadPS4Launcher.BuildStartInfo(executable, gamePath, shadPS4Fullscreen),
             _ => throw new InvalidOperationException("The saved emulator is unsupported. Hold the game cover to choose an emulator.")
         };
         lock (active)

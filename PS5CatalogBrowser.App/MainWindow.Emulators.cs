@@ -49,6 +49,12 @@ public partial class MainWindow
         var picker = new OpenFileDialog { Filter = "SharpEmu (SharpEmu.exe)|SharpEmu.exe" };
         if (picker.ShowDialog(this) == true) model.SharpEmuPath = picker.FileName;
     });
+    private void ChooseShadPS4_Click(object sender, RoutedEventArgs e) => Run(() =>
+    {
+        var picker = new OpenFileDialog { Filter = "shadPS4 (shadPS4.exe)|shadPS4.exe" };
+        if (picker.ShowDialog(this) == true) model.ShadPS4Path = picker.FileName;
+    });
+    private void TestShadPS4_Click(object sender, RoutedEventArgs e) => Run(model.TestShadPS4);
     private async void CheckSharpEmu_Click(object sender, RoutedEventArgs e) => await model.CheckSharpEmuAsync();
     private async void UpdateSharpEmu_Click(object sender, RoutedEventArgs e) => await model.UpdateSharpEmuAsync();
     private void SharpEmuLog_Click(object sender, RoutedEventArgs e) => Run(() =>

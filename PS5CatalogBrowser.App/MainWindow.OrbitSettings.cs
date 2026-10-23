@@ -41,6 +41,8 @@ public partial class MainWindow
             case "chooseCache": ChooseShaderCacheFolder_Click(this, new()); break;
             case "applyArguments": ApplyArguments_Click(this, new()); break;
             case "chooseSharp": ChooseSharpEmu_Click(this, new()); break;
+            case "chooseShadPS4": ChooseShadPS4_Click(this, new()); break;
+            case "testShadPS4": TestShadPS4_Click(this, new()); break;
             case "checkSharp": CheckSharpEmu_Click(this, new()); break;
             case "updateSharp": UpdateSharpEmu_Click(this, new()); break;
             case "sharpLog": SharpEmuLog_Click(this, new()); break;

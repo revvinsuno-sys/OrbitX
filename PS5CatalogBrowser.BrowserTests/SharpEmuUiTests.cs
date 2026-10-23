@@ -100,7 +100,7 @@ internal static class SharpEmuUiTests
             finally { model.GameExited -= ChosenExit; }
             var tabs = (TabControl)window.FindName("SettingsTabs");
             ((TabItem)window.FindName("ClassicSettingsTab")).IsSelected = true;
-            tabs.Items.Cast<TabItem>().Single(tab => tab.Header as string == "SharpEmu").IsSelected = true;
+            tabs.Items.Cast<TabItem>().Single(tab => tab.Header as string == "Emulators").IsSelected = true;
             window.UpdateLayout();
             Check(((TextBox)window.FindName("SharpEmuPathBox")).Text == sharp && model.SharpEmuOwnership.Contains("External"), "Settings binds independent external path");
             // Real WebView cover handlers; synthetic capture mirrors the browser-owned pointer capture.

@@ -2,7 +2,7 @@ using System.Diagnostics;
 
 namespace PS5CatalogBrowser.Core;
 
-public enum EmulatorBackend { KytyPS5, SharpEmu }
+public enum EmulatorBackend { KytyPS5, SharpEmu, ShadPS4 }
 
 public static class SharpEmuLauncher
 {

@@ -15,7 +15,7 @@ internal static class GraphicalSettingsTests
         var host = (OrbitFrontendHost)surface.Content!;
         await host.InitializeAsync(model); await host.Ready.Task.WaitAsync(TimeSpan.FromSeconds(20));
         host.Browser.Focus();
-        var categories = new[] { "sources", "downloads", "passwords", "browser", "installation", "sharpemu", "kyty", "appearance", "language", "metadata", "about" };
+        var categories = new[] { "sources", "downloads", "passwords", "browser", "installation", "emulators", "appearance", "language", "metadata", "about" };
         foreach (var theme in new[] { "cinema", "panorama", "crossbar", "store" })
         {
             await Reload($"localStorage.setItem('orbit.interface.v1',JSON.stringify({{name:'{theme}',motion:'reduced'}}));location.reload()");
@@ -24,7 +24,7 @@ internal static class GraphicalSettingsTests
             await Nav("Browse");
             await Script("window.settingsHeader=document.querySelector('.main-nav')");
             await Nav("Settings");
-            await Until("document.querySelectorAll('[data-settings-category]').length===11");
+            await Until("document.querySelectorAll('[data-settings-category]').length===10");
             Check(surface.IsVisible && model.Interface == "Orbit Store" && !((TabControl)window.FindName("ClassicTabs")).IsVisible,
                 "graphical Settings never leaves WebView or enters Classic: " + theme);
             await Assert("document.querySelector('.main-nav')===window.settingsHeader && !!document.querySelector('.main-nav [aria-current=page]') && !document.querySelector('[role=dialog]')", "same graphical header and page ownership: " + theme);
@@ -35,7 +35,7 @@ internal static class GraphicalSettingsTests
             await Key("Escape"); await Until("!document.querySelector('.orbit-settings')");
             await Until("document.activeElement===document.querySelector('.main-nav [aria-current=page]')");
             await Assert("document.querySelector('.main-nav [aria-current=page]').textContent.trim()==='Browse'", "Escape returns to the actual previous page: " + theme);
-            await Nav("Settings"); await Choose("sharpemu");
+            await Nav("Settings"); await Choose("emulators");
             await Script("document.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true}))");
             await Until("!!document.querySelector('.settings-home')");
             await Script("document.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true}))");
@@ -43,7 +43,7 @@ internal static class GraphicalSettingsTests
         }
         // Exercise the existing controller polling loop, including its neutral-input focus fence.
         await Script("window.testPad={buttons:Array.from({length:17},()=>({pressed:false,value:0})),axes:[0,0,0,0]};Object.defineProperty(navigator,'getGamepads',{configurable:true,value:()=>[window.testPad]})");
-        await Nav("Settings"); await Choose("kyty"); await Task.Delay(120);
+        await Nav("Settings"); await Choose("emulators"); await Task.Delay(120);
         await PadBack(); await Until("!!document.querySelector('.settings-home')");
         await PadBack(); await Until("!document.querySelector('.orbit-settings')");
         await Assert("document.querySelector('.main-nav [aria-current=page]').textContent.trim()==='Browse'", "controller B returns through category, hub and previous page");
@@ -91,7 +91,7 @@ internal static class GraphicalSettingsTests
         var response = await AsyncScript("fetch('/api/v1/windows/settings').then(r=>r.json()).then(s=>({masked:!JSON.stringify(s).includes('synthetic secret'),count:s.passwords.length}))");
         Check(response.Contains("\"masked\":true"), "settings state never serializes saved password bytes");
         await Assert("fetch('/api/v1/windows/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kind:'field',name:'Interface',value:'Classic Windows'})}).then(r=>r.status===400)", "settings endpoint rejects fields outside its allowlist");
-        await Choose("kyty");
+        await Choose("emulators");
         await Edit("ArgumentWidth", "1600"); await Wait(() => model.ArgumentWidth == "1600");
         Check(store.Load().KytyArguments?.ScreenWidth != 1600, "graphical arguments stay drafts until Apply");
         await Edit("ArgumentWidth", "1440"); await Wait(() => model.ArgumentWidth == "1440");
@@ -161,7 +161,7 @@ internal static class GraphicalSettingsTests
                 await Assert("document.documentElement.scrollWidth<=innerWidth+1 && document.querySelector('.orbit-settings-content').getBoundingClientRect().width>100", "no horizontal page overflow: " + category + " at " + size);
                 await Assert("[...document.querySelectorAll('.orbit-settings-panel')].every(panel=>panel.scrollWidth<=panel.clientWidth+1)", "panel contents fit without hidden horizontal overflow: " + category + " at " + size);
                 await Capture(size + "-" + category + ".png");
-                if (category is "sharpemu" or "kyty")
+                if (category == "emulators")
                 {
                     await Script("document.querySelector('.orbit-settings-content details').open=true;document.querySelector('.orbit-settings-content pre').scrollIntoView({block:'center'})");
                     await Assert("document.querySelector('.orbit-settings-content pre').getBoundingClientRect().height>30", "readable output disclosure: " + category);
@@ -179,11 +179,11 @@ internal static class GraphicalSettingsTests
         Check(window.WindowStyle == WindowStyle.None && surface.IsVisible, "Back preserves fullscreen and graphical surface");
         await Script("window.chrome.webview.postMessage({version:1,command:'exitFullscreen'})");
         await Wait(() => window.WindowStyle != WindowStyle.None);
-        Console.WriteLine("PASS graphical Settings: shared shell in four layouts, eleven borderless tiles, Escape/right-click/controller B/focus, real fields/source/IGDB saves, appearance/language, masking, Apply semantics, compact/desktop views and updater output");
+        Console.WriteLine("PASS graphical Settings: shared shell in four layouts, ten borderless tiles, Escape/right-click/controller B/focus, real fields/source/IGDB saves, appearance/language, masking, Apply semantics, compact/desktop views and updater output");
 
         async Task CheckProgress()
         {
-            await Choose("sharpemu"); await Wait(() => model.CanManageSharpEmu && !model.IsCheckingKytyVersion);
+            await Choose("emulators"); await Wait(() => model.CanManageSharpEmu && !model.IsCheckingKytyVersion);
             var managed = Path.Combine(root, "managed-sharp-fixture"); Directory.CreateDirectory(Path.Combine(managed, "source", ".git"));
             var patch = Path.Combine(managed, "fixture.patch"); File.WriteAllText(patch, "synthetic patch");
             var factory = model.CreateSharpUpdater; var fetching = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);

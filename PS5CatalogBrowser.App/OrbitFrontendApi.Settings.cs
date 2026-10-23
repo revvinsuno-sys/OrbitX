@@ -16,6 +16,7 @@ internal sealed partial class OrbitFrontendApi
             ["DownloadRoot"] = model.DownloadRoot, ["DownloadBandwidthMBps"] = model.DownloadBandwidthMBps,
             ["OSFMountPath"] = model.OSFMountPath, ["InstalledGamesRoot"] = model.InstalledGamesRoot, ["RetainOriginalImage"] = model.RetainOriginalImage,
             ["SharpEmuPath"] = model.SharpEmuPath, ["SharpEmuFullscreen"] = model.SharpEmuFullscreen, ["EmulatorPath"] = model.EmulatorPath,
+            ["ShadPS4Path"] = model.ShadPS4Path, ["ShadPS4Fullscreen"] = model.ShadPS4Fullscreen,
             ["ArgumentFullscreen"] = model.ArgumentFullscreen, ["PerformanceArgumentsEnabled"] = model.PerformanceArgumentsEnabled,
             ["ArgumentWidth"] = model.ArgumentWidth, ["ArgumentHeight"] = model.ArgumentHeight, ["ArgumentVblank"] = model.ArgumentVblank,
             ["ArgumentPresentMode"] = model.ArgumentPresentMode, ["ArgumentShaderOptimization"] = model.ArgumentShaderOptimization,
@@ -27,6 +28,7 @@ internal sealed partial class OrbitFrontendApi
             ["MetadataCredentials"] = model.Settings.IgdbClientId.Length > 0 && model.Settings.IgdbClientSecretProtected.Length > 0 ? "Configured" : "Not configured",
             ["InstallationAvailability"] = model.InstallationAvailability, ["EmulatorAvailability"] = model.EmulatorAvailability,
             ["SharpEmuAvailability"] = model.SharpEmuAvailability, ["SharpEmuOwnership"] = model.SharpEmuOwnership,
+            ["ShadPS4Availability"] = model.ShadPS4Availability,
             ["SharpEmuInstalledVersion"] = model.SharpEmuInstalledVersion, ["SharpEmuInstalledRevision"] = model.SharpEmuInstalledRevision,
             ["SharpEmuAvailableRevision"] = model.SharpEmuAvailableRevision, ["SharpEmuInstallDirectory"] = model.SharpEmuInstallDirectory,
             ["SharpEmuCheckTime"] = model.SharpEmuCheckTime, ["SharpEmuUpdateTime"] = model.SharpEmuUpdateTime,
@@ -52,6 +54,7 @@ internal sealed partial class OrbitFrontendApi
         model.CanUpdateKyty ? "updateKyty" : null, "chooseCache", "applyArguments",
         model.CanManageSharpEmu ? "chooseSharp" : null, model.CanManageSharpEmu ? "checkSharp" : null,
         model.CanBuildSharpEmu ? "updateSharp" : null, "sharpLog",
+        model.CanManageShadPS4 ? "chooseShadPS4" : null, model.CanManageShadPS4 ? "testShadPS4" : null,
         CanEditSource ? "sourceAdd" : null, CanEditSource ? "sourceSave" : null,
         CanEditSource ? "sourceRemove" : null, CanEditSource ? "sourceTest" : null,
         CanEditSource ? "sourceRefresh" : null, CanEditSource ? "sourceFile" : null,
@@ -97,6 +100,8 @@ internal sealed partial class OrbitFrontendApi
                     case "SharpEmuPath": model.SharpEmuPath = String(); break;
                     case "SharpEmuFullscreen": model.SharpEmuFullscreen = Bool(); break;
                     case "EmulatorPath": model.EmulatorPath = String(); break;
+                    case "ShadPS4Path": model.ShadPS4Path = String(); break;
+                    case "ShadPS4Fullscreen": model.ShadPS4Fullscreen = Bool(); break;
                     case "ArgumentFullscreen": model.ArgumentFullscreen = Bool(); break;
                     case "PerformanceArgumentsEnabled": model.PerformanceArgumentsEnabled = Bool(); break;
                     case "ArgumentWidth": model.ArgumentWidth = String(); break;

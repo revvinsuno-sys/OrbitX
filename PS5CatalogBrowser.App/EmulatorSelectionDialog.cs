@@ -16,9 +16,14 @@ internal sealed class EmulatorSelectionDialog : Window
         var panel = new StackPanel { Margin = new Thickness(20) }; Content = panel;
         panel.Children.Add(new TextBlock { Text = "Choose Emulator", FontSize = 22, Margin = new Thickness(0, 0, 0, 10) });
         panel.Children.Add(new TextBlock { Text = title, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 14) });
-        foreach (var backend in new[] { EmulatorBackend.KytyPS5, EmulatorBackend.SharpEmu })
+        foreach (var backend in new[] { EmulatorBackend.KytyPS5, EmulatorBackend.SharpEmu, EmulatorBackend.ShadPS4 })
         {
-            var availability = backend == EmulatorBackend.KytyPS5 ? model.EmulatorAvailability : model.SharpEmuAvailability;
+            var availability = backend switch
+            {
+                EmulatorBackend.KytyPS5 => model.EmulatorAvailability,
+                EmulatorBackend.SharpEmu => model.SharpEmuAvailability,
+                _ => model.ShadPS4Availability
+            };
             panel.Children.Add(new TextBlock { Text = backend + ": " + availability, TextWrapping = TextWrapping.Wrap });
             var button = new Button { Content = backend.ToString(), Foreground = Brushes.Black, MinHeight = 44, Margin = new Thickness(0, 6, 0, 14) };
             System.Windows.Automation.AutomationProperties.SetName(button, "Launch with " + backend);

@@ -43,7 +43,7 @@ internal static class KytyArgumentsUiTests
             model.AdditionalArguments = "--user-name \"Player One\"";
             var tabs = (TabControl)window.FindName("ClassicTabs");
             tabs.Items.Cast<TabItem>().Single(tab => tab.Header as string == "Settings").IsSelected = true;
-            ((TabControl)window.FindName("SettingsTabs")).Items.Cast<TabItem>().Single(tab => tab.Header as string == "KytyPS5").IsSelected = true;
+            ((TabControl)window.FindName("SettingsTabs")).Items.Cast<TabItem>().Single(tab => tab.Header as string == "Emulators").IsSelected = true;
             window.UpdateLayout();
             ((Button)window.FindName("ApplyArgumentsButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Check(store.Load().KytyArguments?.ScreenWidth == 1366 && model.ArgumentsSaveState.StartsWith("Saved"), "Apply saves custom resolution via real Settings button");

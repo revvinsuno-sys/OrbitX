@@ -23,11 +23,11 @@ internal static class SettingsNavigationTests
             var classicTab = (TabItem)window.FindName("ClassicSettingsTab");
             classicTab.IsSelected = true;
             var names = categories.Items.Cast<TabItem>().Select(tab => (string)tab.Header).ToArray();
-            Check(names.SequenceEqual(new[] { "Catalogue sources", "Downloads", "Archive passwords", "Embedded browser", "Image installation", "SharpEmu", "KytyPS5", "About OrbitX" }), "all existing categories remain available");
+            Check(names.SequenceEqual(new[] { "Catalogue sources", "Downloads", "Archive passwords", "Embedded browser", "Image installation", "Emulators", "About OrbitX" }), "all existing categories remain available");
             var workspace = (Grid)window.FindName("SettingsWorkspace");
             var tiles = ((WrapPanel)window.FindName("SettingsTiles")).Children.Cast<Button>().ToArray();
             window.UpdateLayout();
-            Check(tiles.Length == 8 && categories.Visibility == Visibility.Collapsed, "settings opens on the seven-category hub with integrated About navigation");
+            Check(tiles.Length == 7 && categories.Visibility == Visibility.Collapsed, "settings opens on the seven-category hub with integrated About navigation");
             await Capture("settings-home-classic.png");
             tiles[0].RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); window.UpdateLayout();
             Check(categories.IsVisible && categories.SelectedIndex == 0, "first category opens even when already selected internally");
@@ -69,13 +69,13 @@ internal static class SettingsNavigationTests
             Check(store.Load().InstalledGamesRoot == installed.Text && store.Load().DownloadRoot == download.Text, "installation path persists independently of downloads");
             var retain = Descendants<CheckBox>(workspace).Single(control => control.GetBindingExpression(CheckBox.IsCheckedProperty)?.ParentBinding.Path.Path == "RetainOriginalImage");
             retain.IsChecked = true; Check(store.Load().RetainOriginalImage, "retention toggle uses existing persistence");
-            Select("SharpEmu"); Check(((TextBox)window.FindName("SharpEmuPathBox")).IsVisible, "independent SharpEmu settings are reachable");
+            Select("Emulators"); Check(((TextBox)window.FindName("SharpEmuPathBox")).IsVisible, "independent SharpEmu settings are reachable");
             var fullscreenOption = Descendants<CheckBox>(workspace).Single(control => control.GetBindingExpression(CheckBox.IsCheckedProperty)?.ParentBinding.Path.Path == "SharpEmuFullscreen");
             fullscreenOption.IsChecked = true; Check(store.Load().SharpEmuFullscreen, "SharpEmu launch preference persists independently");
             await Capture("settings-sharpemu.png");
-            Select("KytyPS5");
+            Select("Emulators");
             var width = (TextBox)window.FindName("ArgumentWidthBox");
-            Check(width.IsVisible && categories.SelectedItem is TabItem { Header: "KytyPS5" }, "Arguments are grouped with emulator settings");
+            Check(width.IsVisible && categories.SelectedItem is TabItem { Header: "Emulators" }, "Arguments are grouped with emulator settings");
             model.PerformanceArgumentsEnabled = true; model.ArgumentWidth = "1440"; model.ArgumentVblank = "60";
             await Capture("settings-desktop.png");
             await GraphicalSettingsTests.RunAsync(window, model, store, root);
@@ -86,7 +86,7 @@ internal static class SettingsNavigationTests
             foreach (var (sizeName, windowWidth, windowHeight) in new[] { ("minimum", 920d, 620d), ("normal", 1280d, 800d) })
             {
                 window.Width = windowWidth; window.Height = windowHeight; window.UpdateLayout();
-                foreach (var name in names.Take(7))
+                foreach (var name in names.Take(6))
                 {
                     Select(name);
                     var scroll = (ScrollViewer)((TabItem)categories.SelectedItem).Content;
@@ -97,9 +97,9 @@ internal static class SettingsNavigationTests
                     await Capture("settings-" + sizeName + "-" + categories.SelectedIndex + ".png");
                 }
             }
-            window.Width = 920; window.Height = 620; Select("KytyPS5");
+            window.Width = 920; window.Height = 620; Select("Emulators");
             await Capture("settings-minimum.png");
-            Select("SharpEmu");
+            Select("Emulators");
             await Capture("settings-sharpemu-minimum.png");
             window.Width = 1280; window.Height = 800; window.UpdateLayout();
             await Capture("settings-sharpemu-normal.png");
