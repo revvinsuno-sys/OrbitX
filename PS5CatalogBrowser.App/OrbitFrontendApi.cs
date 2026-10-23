@@ -131,6 +131,13 @@ internal sealed partial class OrbitFrontendApi : IDisposable
     private static string[] ReleaseActions((CatalogEntry Entry, DownloadMirror Mirror) release) =>
         (release.Mirror.DirectEnabled ? new[] { "download" } : []).Concat(release.Mirror.BrowserEnabled ? ["browser"] : []).Concat(["external", "import"])
         .Concat(release.Entry.DownloadAllEnabled && release.Entry.CatalogFormat != "OptiStore" && release.Entry.Artifacts.Count > 1 ? ["downloadAll"] : []).ToArray();
+    private string? ReleaseDownloadStatus((CatalogEntry Entry, DownloadMirror Mirror) release)
+    {
+        var identity = DownloadAdmission.Capture(release.Entry, release.Mirror.Artifact);
+        var job = model.Downloads.LastOrDefault(candidate => candidate.SelectionIdentity == identity &&
+            candidate.State is "Queued" or "Downloading" or "Checking integrity" or "Cancelling");
+        return job?.State switch { "Queued" => "queued", "Downloading" or "Checking integrity" or "Cancelling" => "downloading", _ => null };
+    }
     internal string[] DownloadActions(DownloadJob job) => new[] {
         "findDownloadGame",
         model.BrowserDownloads.CanCheckStatus(job.Id) ? "checkStatus" : null,
@@ -251,7 +258,7 @@ internal sealed partial class OrbitFrontendApi : IDisposable
             {
                 if (properties.Length != 1) return (400, new { error = "Unexpected release arguments." });
                 return ResolveRelease(id) is { } release ? (200, new { title = release.Entry.Title, provider = release.Mirror.Provider, filename = release.Mirror.ExpectedFileName,
-                    version = release.Mirror.Artifact.Version, format = release.Mirror.Format, size = release.Mirror.Artifact.Size, actions = ReleaseActions(release),
+                    version = release.Mirror.Artifact.Version, format = release.Mirror.Format, size = release.Mirror.Artifact.Size, actions = ReleaseActions(release), downloadStatus = ReleaseDownloadStatus(release),
                     instructions = new { download = "Download directly into your configured Windows Downloads folder. Follow progress on Downloads.", browser = release.Mirror.BrowserInstructions,
                         external = "Complete the download in your external browser, then return and choose Import completed file for this same release.",
                         import = "Choose the completed file matching this release. This app verifies it before registering it.", downloadAll = "Download the explicitly listed files for this catalogue entry. Follow each file on Downloads." } }) : (404, new { error = "That release is no longer available. Refresh the catalogue." });

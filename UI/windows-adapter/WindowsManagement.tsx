@@ -13,7 +13,7 @@ type RecordActions = { id: string; title: string; actions: string[]; progress?: 
 type Download = RecordActions & { state: string; error: string; archiveStatus: string; method: string; downloadedBytes: number; totalBytes?: number; percentage?: number; bytesPerSecond: number; fileName: string; installLabel: string };
 type LibraryItem = RecordActions & LibraryCardItem;
 type Installation = RecordActions & { cardId: string; fileName: string; state: string; error: string; totalBytes: number; cleanupResult: string };
-type Release = { title: string; provider: string; filename: string; version: string; format: string; size?: number; actions: string[]; instructions: Record<string, string> };
+type Release = { title: string; provider: string; filename: string; version: string; format: string; size?: number; actions: string[]; downloadStatus?: 'queued' | 'downloading' | null; instructions: Record<string, string> };
 type EmulatorAvailability = { available: boolean; availability: string };
 type State = { status: string; scanning: boolean; scanStatus: string; downloadRoot: string; extraction: string; extractionPercentage: number; installation: string; installationProgress: string; installationPercentage: number; actions: string[]; emulators: { kytyPS5: EmulatorAvailability; sharpEmu: EmulatorAvailability; shadPS4: EmulatorAvailability }; downloads: Download[]; providerSessions: RecordActions[]; library: LibraryItem[]; installations: Installation[] };
 const labels: Record<string, string> = {
@@ -164,17 +164,30 @@ export function WindowsReleaseActions() {
     return () => { window.removeEventListener('windows-release', open); window.removeEventListener('windows-appearance', close); window.removeEventListener('windows-page', close); };
   }, []);
   useEffect(() => {
-    if (!id) return; let alive = true;
-    void api<Release>('/windows/release', { id }).then(value => { if (alive) setRelease(value); }).catch(e => { if (alive) setError((e as Error).message); });
-    return () => { alive = false; };
+    if (!id) return; let alive = true, loading = false;
+    const refresh = async () => {
+      if (loading) return;
+      loading = true;
+      try { const value = await api<Release>('/windows/release', { id }); if (alive) { setRelease(value); setError(''); } }
+      catch (e) { if (alive) setError((e as Error).message); }
+      finally { loading = false; }
+    };
+    void refresh();
+    const timer = setInterval(() => void refresh(), 1200);
+    return () => { alive = false; clearInterval(timer); };
   }, [id]);
+  const downloadLabel = release?.downloadStatus === 'queued' ? 'Added to queue' : 'Downloading';
   return id ? <Modal title="Download release" close={() => setId('')}><div className="windows-management">
     {release ? <><h2>{release.title}</h2><p>{release.provider}</p><p>{release.filename} · {release.format}{release.version ? ` · ${release.version}` : ''} · {release.size == null ? 'Size unknown' : bytes(release.size)}</p><p>Save to your configured Windows Downloads folder. Installation and launching are separate.</p>
       {!release.actions.includes('download') && <p>This provider needs its download webpage. Use the browser-assisted option when available, or complete the download in your browser and import the matching file.</p>}
-      <div className="windows-actions">{release.actions.map(action => <div className="windows-method" key={action}><button aria-describedby={`windows-${action}-instructions`} className={action === release.actions[0] ? 'primary' : ''} disabled={pending} data-windows-action={action} onClick={async () => {
-        setPending(true); setError(''); try { await act(action, id); setId(''); }
+      <div className="windows-actions">{release.actions.map(action => {
+        const downloadAction = action === 'download' || action === 'browser';
+        const busy = downloadAction && !!release.downloadStatus;
+        return <div className="windows-method" key={action}><button aria-describedby={`windows-${action}-instructions`} className={action === release.actions[0] ? 'primary' : ''} disabled={pending || busy} data-windows-action={action} onClick={async () => {
+        setPending(true); setError(''); try { await act(action, id); const updated = await api<Release>('/windows/release', { id }); setRelease(updated); }
         catch (e) { setError((e as Error).message); } finally { setPending(false); }
-      }}>{labels[action]}</button><p id={`windows-${action}-instructions`}>{release.instructions[action]}</p></div>)}</div></> : !error && <p>Loading release…</p>}
+      }}>{busy ? downloadLabel : labels[action]}</button><p id={`windows-${action}-instructions`}>{release.instructions[action]}</p></div>;
+      })}</div></> : !error && <p>Loading release…</p>}
     {error && <p role="alert">{error}</p>}
   </div></Modal> : null;
 }
