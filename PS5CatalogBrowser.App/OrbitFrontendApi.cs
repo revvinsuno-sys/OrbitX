@@ -129,8 +129,7 @@ internal sealed partial class OrbitFrontendApi : IDisposable
         return ids.Length == 1 ? ids[0] : null;
     }
     private static string[] ReleaseActions((CatalogEntry Entry, DownloadMirror Mirror) release) =>
-        (release.Mirror.DirectEnabled ? new[] { "download" } : []).Concat(release.Mirror.BrowserEnabled ? ["browser"] : []).Concat(["external", "import"])
-        .Concat(release.Entry.DownloadAllEnabled && release.Entry.CatalogFormat != "OptiStore" && release.Entry.Artifacts.Count > 1 ? ["downloadAll"] : []).ToArray();
+        release.Mirror.DownloadsEnabled && !string.IsNullOrWhiteSpace(release.Mirror.BrowserUrl) ? ["browser"] : [];
     private string? ReleaseDownloadStatus((CatalogEntry Entry, DownloadMirror Mirror) release)
     {
         var identity = DownloadAdmission.Capture(release.Entry, release.Mirror.Artifact);

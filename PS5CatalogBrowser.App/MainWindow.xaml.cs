@@ -136,9 +136,9 @@ public partial class MainWindow : Window
         var entry = model.SelectedEntry ?? throw new InvalidOperationException("Select a title.");
         DownloadAdmission.EnsureEnabled(entry);
         NetworkPolicy.Validate(mirror.BrowserUrl); model.SelectedMirror = mirror;
-        if (model.BrowserDownloads.QueueVikingFile(entry, mirror, DownloadAdmission.Capture(entry, mirror.Artifact)))
+        if (model.BrowserDownloads.QueueProvider(entry, mirror, DownloadAdmission.Capture(entry, mirror.Artifact)))
         {
-            model.Status = entry.Title + " added to Downloads and queued for the VikingFile slot. The current provider window was minimized; the queued page will open after its download completes and its window is closed.";
+            model.Status = entry.Title + " added to Downloads and queued for the browser slot. Its provider page will open after the current browser download finishes.";
             return;
         }
         new BrowserDownloadWindow(entry, mirror, model.BrowserDownloads) { Owner = this }.Show();
@@ -218,6 +218,11 @@ public partial class MainWindow : Window
         if (model.SavedBrowserRelease(job) is { } saved)
         {
             // Re-enter the original provider page and native DownloadStarting flow. Never replay a signed transfer URL over HTTP.
+            if (model.BrowserDownloads.QueueProvider(saved.Entry, saved.Mirror, DownloadAdmission.Capture(saved.Entry, saved.Mirror.Artifact)))
+            {
+                model.Status = "Retry added to Downloads and queued for the browser slot. Its provider page will open after the current browser download finishes.";
+                return;
+            }
             new BrowserDownloadWindow(saved.Entry, saved.Mirror, model.BrowserDownloads, unavailable: () => OpenRetryStore(job)) { Owner = this }.Show();
             model.Status = "Retrying the saved provider page. Complete any verification; matching file offers continue automatically.";
             return;

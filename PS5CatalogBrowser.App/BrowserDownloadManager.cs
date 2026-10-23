@@ -55,10 +55,10 @@ public sealed class BrowserDownloadManager(Func<string> root, Func<IEnumerable<D
     public bool IsActive(DownloadJob job) => transfers.ContainsKey(job.Id) || importWriters.ContainsKey(job.Id);
     public bool ShuttingDown { get; private set; }
 
-    public bool QueueVikingFile(CatalogEntry entry, DownloadMirror mirror, string selectionIdentity)
+    public bool QueueProvider(CatalogEntry entry, DownloadMirror mirror, string selectionIdentity)
     {
-        var slotInUse = Bandwidth?.IsBusy == true || transfers.Count > 0 || Sessions.Any(session => session.Downloads.Any(job => job.State is "Queued" or "Downloading" or "Checking integrity" or "Downloaded" or "Imported"));
-        if (!IsVikingFile(mirror.BrowserUrl) || !slotInUse) return false;
+        var slotInUse = Bandwidth?.IsBusy == true || transfers.Count > 0 || Sessions.Count > 0 || queuedProviders.Count > 0;
+        if (!slotInUse) return false;
         if (queuedProviders.Any(q => q.Job.SelectionIdentity == selectionIdentity))
             throw new IOException("This game is already queued for the provider download slot.");
         var name = mirror.ExpectedFileName.Length > 0 ? mirror.ExpectedFileName : entry.Title + ".download";
@@ -67,18 +67,15 @@ public sealed class BrowserDownloadManager(Func<string> root, Func<IEnumerable<D
             {
                 var prepared = BrowserDownloadFiles.Prepare(entry, mirror, root(), name, jobs());
                 prepared.State = "Queued";
-                prepared.Error = "Waiting for the shared download slot. The active transfer must finish first.";
+                prepared.Error = "Waiting for the browser download slot. The active provider window must finish first.";
                 prepared.Url = mirror.BrowserUrl;
                 return [prepared];
             }, accepted => added(accepted[0]), rejected => BrowserDownloadFiles.DiscardStaging(rejected[0]))[0];
         queuedProviders.Enqueue(new(entry, mirror, job));
         foreach (var session in Sessions) session.Minimize();
+        TryStartQueuedProvider();
         return true;
     }
-
-    public static bool IsVikingFile(string url) => Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
-        uri.Host.Equals("vikingfile.com", StringComparison.OrdinalIgnoreCase) ||
-        Uri.TryCreate(url, UriKind.Absolute, out uri) && uri.Host.Equals("www.vikingfile.com", StringComparison.OrdinalIgnoreCase);
 
     public void ProviderWindowClosed(ProviderSession session)
     {

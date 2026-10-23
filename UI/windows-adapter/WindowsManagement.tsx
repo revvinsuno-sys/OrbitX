@@ -19,7 +19,7 @@ type State = { status: string; scanning: boolean; scanStatus: string; downloadRo
 const labels: Record<string, string> = {
   findDownloadGame: 'Find game',
   checkStatus: 'Check status', cancelContentMove: 'Cancel verification',
-  download: 'Download', browser: 'Browser-assisted download', external: 'Open provider in browser', import: 'Import completed file',
+  download: 'Download', browser: 'Download', external: 'Open provider in browser', import: 'Import completed file',
   downloadAll: 'Download all files (PS5 Library)', deleteDownload: 'Delete', scanDownloads: 'Scan downloads',
   retryDownload: 'Retry', retryInstallationDownload: 'Retry', pause: 'Pause', resume: 'Resume', cancel: 'Cancel download', restart: 'Restart download', discard: 'Discard incomplete', clearDownload: 'Remove', installDownload: 'Install / extract',
   clearDownloads: 'Clear completed history', downloadsFolder: 'Open Downloads folder', addFolder: 'Add folder', addElf: 'Add ELF', installFile: 'Install from file',
@@ -179,7 +179,7 @@ export function WindowsReleaseActions() {
   const downloadLabel = release?.downloadStatus === 'queued' ? 'Added to queue' : 'Downloading';
   return id ? <Modal title="Download release" close={() => setId('')}><div className="windows-management">
     {release ? <><h2>{release.title}</h2><p>{release.provider}</p><p>{release.filename} · {release.format}{release.version ? ` · ${release.version}` : ''} · {release.size == null ? 'Size unknown' : bytes(release.size)}</p><p>Save to your configured Windows Downloads folder. Installation and launching are separate.</p>
-      {!release.actions.includes('download') && <p>This provider needs its download webpage. Use the browser-assisted option when available, or complete the download in your browser and import the matching file.</p>}
+      {!release.actions.includes('browser') && <p>This release has no available download link.</p>}
       <div className="windows-actions">{release.actions.map(action => {
         const downloadAction = action === 'download' || action === 'browser';
         const busy = downloadAction && !!release.downloadStatus;

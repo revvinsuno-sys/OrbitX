@@ -57,12 +57,13 @@ public partial class BrowserDownloadWindow : Window
         var session = new BrowserDownloadManager.ProviderSession(Guid.NewGuid().ToString("N"), entry.Title, accepted, () =>
         { WindowState = WindowState.Normal; Show(); Activate(); }, () => WindowState = WindowState.Minimized,
         () => _ = Dispatcher.BeginInvoke(new Action(() => { if (IsLoaded) Close(); })));
+        // Reserve the sole embedded-browser slot before Show/Loaded, so rapid requests queue.
+        manager.Sessions.Add(session);
         var initialized = false;
         Loaded += async (_, _) =>
         {
             if (initialized) return;
             initialized = true;
-            manager.Sessions.Add(session);
             await InitializeAsync();
         };
         StateChanged += (_, _) =>
