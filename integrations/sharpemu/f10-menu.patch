@@ -1,0 +1,714 @@
+--- a/src/SharpEmu.Libs/Pad/HostWindowInput.cs
++++ b/src/SharpEmu.Libs/Pad/HostWindowInput.cs
+@@ -11,6 +11,17 @@
+     private static readonly object Gate = new();
+     private static readonly HashSet<int> PressedKeys = new();
+     private static bool _focused;
++    private static bool menuCaptured, gamepadSuppressed;
++    private static readonly HashSet<int> MenuKeys = new();
++    internal static void SetMenuCaptured(bool captured)
++    {
++        lock (Gate)
++        {
++            if (captured) MenuKeys.UnionWith(PressedKeys);
++            menuCaptured = captured;
++            gamepadSuppressed = true;
++        }
++    }
+     private static bool _gamepadConnected;
+     private static string? _gamepadName;
+     private static HostGamepadState _gamepadState;
+@@ -22,6 +33,8 @@
+         lock (Gate)
+         {
+             _focused = true;
++            menuCaptured = gamepadSuppressed = false;
++            MenuKeys.Clear();
+             _gamepadOutput = gamepadOutput;
+             PressedKeys.Clear();
+         }
+@@ -63,10 +76,12 @@
+             if (down)
+             {
+                 PressedKeys.Add(virtualKey);
++                if (menuCaptured) MenuKeys.Add(virtualKey);
+             }
+             else
+             {
+                 PressedKeys.Remove(virtualKey);
++                MenuKeys.Remove(virtualKey);
+             }
+         }
+     }
+@@ -78,6 +93,10 @@
+             _gamepadConnected = state.Connected;
+             _gamepadName = name;
+             _gamepadState = state;
++            if (!menuCaptured && state.Buttons == HostGamepadButtons.None &&
++                state.LeftX is >= 100 and <= 156 && state.LeftY is >= 100 and <= 156 &&
++                state.RightX is >= 100 and <= 156 && state.RightY is >= 100 and <= 156 &&
++                state.LeftTrigger == 0 && state.RightTrigger == 0) gamepadSuppressed = false;
+         }
+     }
+ 
+@@ -117,7 +136,7 @@
+         {
+             lock (Gate)
+             {
+-                return PressedKeys.Contains(virtualKey);
++                return !menuCaptured && !MenuKeys.Contains(virtualKey) && PressedKeys.Contains(virtualKey);
+             }
+         }
+ 
+@@ -130,7 +149,10 @@
+                     return 0;
+                 }
+ 
+-                destination[0] = _gamepadState;
++                destination[0] = menuCaptured || gamepadSuppressed
++                    ? _gamepadState with { Buttons = HostGamepadButtons.None, LeftX = 128, LeftY = 128,
++                        RightX = 128, RightY = 128, LeftTrigger = 0, RightTrigger = 0, Motion = default, Touch = default }
++                    : _gamepadState;
+                 return 1;
+             }
+         }
+--- a/src/SharpEmu.Libs/VideoOut/PerfOverlay.cs
++++ b/src/SharpEmu.Libs/VideoOut/PerfOverlay.cs
+@@ -70,12 +70,13 @@
+     private static string _minimalSummary = "FPS 0.0 | CPU 0% | GPU N/A | TIME 00:00:00";
+ 
+     public static bool Enabled => DisplayState.Enabled;
+-    public static bool DrawOnScreen => DisplayState.DrawOnScreen;
++    public static bool DrawOnScreen => BrowserGameMenu.Visible || DisplayState.DrawOnScreen;
+-    public static int DisplayWidth => DisplayState.DisplayWidth;
+-    public static int DisplayHeight => DisplayState.DisplayHeight;
++    public static int DisplayWidth => BrowserGameMenu.Visible ? PanelWidth : DisplayState.DisplayWidth;
++    public static int DisplayHeight => BrowserGameMenu.Visible ? PanelHeight : DisplayState.DisplayHeight;
+ 
+     internal static void Configure(HostVideoOptions options)
+     {
++        BrowserGameMenu.Close();
+         _gpuUsage?.Dispose();
+         _gpuUsage = new WindowsGpuUsage();
+         DisplayState.Configure(options,
+@@ -92,7 +93,8 @@
+     public static void Toggle() => DisplayState.Toggle();
+     public static void CycleCorner() => DisplayState.CycleCorner();
+ 
+-    internal static OverlayRectangle GetRectangle(int width, int height) => DisplayState.GetRectangle(width, height);
++    internal static OverlayRectangle GetRectangle(int width, int height) => BrowserGameMenu.Visible
++        ? BrowserGameMenu.Rectangle(width, height) : DisplayState.GetRectangle(width, height);
+ 
+     internal static string GetTitleBarSummary()
+     {
+@@ -157,6 +159,13 @@
+             bgra[i + 3] = 0xFF;
+         }
+ 
++        if (BrowserGameMenu.Visible)
++        {
++            DrawString(bgra, 8, 8, "SHARPEMU GAME MENU", 0x60, 0xB7, 0xFF);
++            DrawString(bgra, 8, 48, BrowserGameMenu.ExitSelected ? "  CONTINUE" : "> CONTINUE", 0xFF, 0xFF, 0xFF);
++            DrawString(bgra, 8, 82, BrowserGameMenu.ExitSelected ? "> EXIT TO LIBRARY" : "  EXIT TO LIBRARY", 0xFF, 0xFF, 0xFF);
++            return;
++        }
+         if (DisplayState.Mode != PerformanceOverlayMode.Full)
+         {
+             DrawString(bgra, 8, 6, _minimalLine1, 0x60, 0xFF, 0x60);
+--- a/src/SharpEmu.Libs/VideoOut/SdlHostWindow.cs
++++ b/src/SharpEmu.Libs/VideoOut/SdlHostWindow.cs
+@@ -423,6 +423,7 @@
+         }
+ 
+         _disposed = true;
++        BrowserGameMenu.Close();
+         PerfOverlay.Shutdown();
+         SDL_ShowCursor();
+         HostWindowInput.Disconnect();
+@@ -476,9 +477,11 @@
+                 case SDL_EventType.SDL_EVENT_WINDOW_FOCUS_LOST:
+                     _focused = false;
+                     UpdateCursorVisibility();
++                    BrowserGameMenu.Close();
+                     HostWindowInput.SetFocused(false);
+                     break;
+                 case SDL_EventType.SDL_EVENT_WINDOW_MINIMIZED:
++                    BrowserGameMenu.Close();
+                     _focused = false;
+                     UpdateCursorVisibility();
+                     HostWindowInput.SetFocused(false);
+@@ -506,6 +509,20 @@
+                     break;
+                 case SDL_EventType.SDL_EVENT_MOUSE_BUTTON_DOWN:
+                     ShowCursorTemporarily();
++                    if (BrowserGameMenu.Visible)
++                    {
++                        int logicalWidth, logicalHeight, menuWidth, menuHeight;
++                        SDL_GetWindowSize(_window, &logicalWidth, &logicalHeight);
++                        SDL_GetWindowSizeInPixels(_window, &menuWidth, &menuHeight);
++                        var menuX = windowEvent.button.x * menuWidth / Math.Max(1, logicalWidth);
++                        var menuY = windowEvent.button.y * menuHeight / Math.Max(1, logicalHeight);
++                        if (windowEvent.button.button == 1 && BrowserGameMenu.Pointer(menuX, menuY, menuWidth, menuHeight))
++                        {
++                            _closedByUser = true;
++                            Close();
++                        }
++                        break;
++                    }
+                     if (windowEvent.button.button == 1 && windowEvent.button.clicks == 2)
+                     {
+                         ToggleFullscreen();
+@@ -542,6 +559,13 @@
+     private void HandleKey(SDL_KeyboardEvent keyEvent)
+     {
+         var down = keyEvent.type == SDL_EventType.SDL_EVENT_KEY_DOWN;
++        if (!_focused) return;
++        if (BrowserGameMenu.Visible && TryMapVirtualKey(keyEvent.key, out var menuKey)) HostWindowInput.SetKey(menuKey, down);
++        if (BrowserGameMenu.Key(keyEvent.key, down, keyEvent.repeat, out var menuExit))
++        {
++            if (menuExit) { _closedByUser = true; Close(); }
++            return;
++        }
+         if (down && !keyEvent.repeat)
+         {
+             if (keyEvent.key == SDL_Keycode.SDLK_F1 &&
+@@ -769,6 +793,7 @@
+                 Motion = ReadMotion(),
+                 Touch = ReadTouch(),
+             };
++            if (_focused && BrowserGameMenu.Gamepad(state)) { _closedByUser = true; Close(); }
+             HostWindowInput.SetGamepad(
+                 DescribeGamepad(),
+                 state);
+--- /dev/null
++++ b/src/SharpEmu.Libs/VideoOut/BrowserGameMenu.cs
+@@ -0,0 +1,93 @@
++// Local OrbitX integration; GPL-2.0-or-later, like SharpEmu.
++using SDL;
++using SharpEmu.HLE.Host;
++using SharpEmu.Libs.Pad;
++
++namespace SharpEmu.Libs.VideoOut;
++
++internal static class BrowserGameMenu
++{
++    private static long revision;
++    internal static long Revision => Interlocked.Read(ref revision);
++    private static void Select(int value) { if (Interlocked.Exchange(ref state, value) != value) Interlocked.Increment(ref revision); }
++    private static int state; // 0 closed, 1 Continue, 2 Exit to library
++    private static HostGamepadButtons previousButtons;
++    private static int previousStick;
++    internal static bool Visible => Volatile.Read(ref state) != 0;
++    internal static bool ExitSelected => Volatile.Read(ref state) == 2;
++
++    internal static void Close()
++    {
++        if (Visible) { Select(0); HostWindowInput.SetMenuCaptured(false); }
++    }
++
++    private static void Toggle()
++    {
++        if (Visible) Close();
++        else
++        {
++            HostWindowInput.SetMenuCaptured(true);
++            Select(1);
++        }
++    }
++
++    // Returns whether this keyboard event belongs to the menu, including repeat/key-up.
++    internal static bool Key(SDL_Keycode key, bool down, bool repeat, out bool exit)
++    {
++        exit = false;
++        if (key == SDL_Keycode.SDLK_F10)
++        {
++            if (down && !repeat) Toggle();
++            return true;
++        }
++        if (!Visible) return false;
++        if (!down || repeat) return true;
++        if (key == SDL_Keycode.SDLK_ESCAPE) Close();
++        else if (key is SDL_Keycode.SDLK_UP or SDL_Keycode.SDLK_LEFT) Select(1);
++        else if (key is SDL_Keycode.SDLK_DOWN or SDL_Keycode.SDLK_RIGHT) Select(2);
++        else if (key == SDL_Keycode.SDLK_RETURN)
++        {
++            exit = ExitSelected;
++            Close();
++        }
++        return true;
++    }
++
++    internal static bool Gamepad(HostGamepadState pad)
++    {
++        var buttons = pad.Buttons;
++        var pressed = buttons & ~previousButtons;
++        var stick = pad.LeftY < 70 ? -1 : pad.LeftY > 186 ? 1 : 0;
++        var direction = stick != previousStick ? stick : 0;
++        previousButtons = buttons;
++        previousStick = stick;
++        if ((pressed & HostGamepadButtons.Ps) != 0) { Toggle(); return false; }
++        if (!Visible) return false;
++        if ((pressed & HostGamepadButtons.Circle) != 0) { Close(); return false; }
++        if ((pressed & HostGamepadButtons.Up) != 0 || direction == -1) Select(1);
++        if ((pressed & HostGamepadButtons.Down) != 0 || direction == 1) Select(2);
++        if ((pressed & HostGamepadButtons.Cross) == 0) return false;
++        var exit = ExitSelected;
++        Close();
++        return exit;
++    }
++
++    internal static OverlayRectangle Rectangle(int width, int height)
++    {
++        var w = Math.Min(Math.Max(0, width), PerfOverlay.PanelWidth);
++        var h = Math.Min(Math.Max(0, height), PerfOverlay.PanelHeight);
++        return new((width - w) / 2, (height - h) / 2, w, h);
++    }
++
++    internal static bool Pointer(float x, float y, int width, int height)
++    {
++        var rect = Rectangle(width, height);
++        if (rect.Width == 0 || rect.Height == 0) return false;
++        x -= rect.Left;
++        y -= rect.Top;
++        if (x < 8 || x >= PerfOverlay.PanelWidth - 8) return false;
++        if (y >= 44 && y < 68) { Close(); return false; }
++        if (y >= 78 && y < 102) { Close(); return true; }
++        return false;
++    }
++}
+--- /dev/null
++++ b/src/SharpEmu.Libs/VideoOut/VulkanVideoPresenter.BrowserMenu.cs
+@@ -0,0 +1,91 @@
++// Local OrbitX integration; GPL-2.0-or-later.
++using SharpEmu.Libs.Gpu.Vulkan;
++using Silk.NET.Vulkan;
++namespace SharpEmu.Libs.VideoOut;
++
++internal static unsafe partial class VulkanVideoPresenter
++{
++    private sealed partial class Presenter
++    {
++        private Image _browserBackground;
++        private DeviceMemory _browserBackgroundMemory;
++        private bool _browserBackgroundValid, _browserBackgroundHdr;
++        private long _browserPresentedRevision;
++
++        private void DestroyBrowserBackground()
++        {
++            // Called with all frame slots drained, together with swapchain destruction.
++            if (_browserBackground.Handle != 0) _vk.DestroyImage(_device, _browserBackground, null);
++            if (_browserBackgroundMemory.Handle != 0) _deviceInfo.FreeMemory(_browserBackgroundMemory);
++            _browserBackground = default;
++            _browserBackgroundMemory = default;
++            _browserBackgroundValid = false;
++            _browserPresentedRevision = -1;
++        }
++
++        private void RecordBrowserBackground(uint index, bool restore)
++        {
++            if (_browserBackground.Handle == 0)
++            {
++                var info = new ImageCreateInfo
++                {
++                    SType = StructureType.ImageCreateInfo, ImageType = ImageType.Type2D,
++                    Format = PresentationTargetFormat, Extent = new(_extent.Width, _extent.Height, 1),
++                    MipLevels = 1, ArrayLayers = 1, Samples = SampleCountFlags.Count1Bit,
++                    Tiling = ImageTiling.Optimal, SharingMode = SharingMode.Exclusive,
++                    Usage = ImageUsageFlags.TransferSrcBit | ImageUsageFlags.TransferDstBit,
++                    InitialLayout = ImageLayout.Undefined
++                };
++                Check(_vk.CreateImage(_device, &info, null, out _browserBackground), "menu background image");
++                _vk.GetImageMemoryRequirements(_device, _browserBackground, out var requirements);
++                var allocation = new MemoryAllocateInfo
++                {
++                    SType = StructureType.MemoryAllocateInfo, AllocationSize = requirements.Size,
++                    MemoryTypeIndex = FindMemoryType(requirements.MemoryTypeBits, MemoryPropertyFlags.DeviceLocalBit)
++                };
++                Check(_deviceInfo.AllocateMemory(allocation, out _browserBackgroundMemory), "menu background memory");
++                Check(_vk.BindImageMemory(_device, _browserBackground, _browserBackgroundMemory, 0), "menu background binding");
++            }
++            var target = PresentationTargetImage(index);
++            var targetOld = restore && !_imageInitialized[index] ? ImageLayout.Undefined : PresentationTargetFinalLayout;
++            var backgroundLayout = _browserBackgroundValid ? ImageLayout.TransferSrcOptimal : ImageLayout.Undefined;
++            var range = ColorSubresourceRange();
++            ImageMemoryBarrier2 Barrier(Image image, ImageLayout from, ImageLayout to) => new()
++            {
++                SType = StructureType.ImageMemoryBarrier2, Image = image, OldLayout = from, NewLayout = to,
++                SrcAccessMask = from == ImageLayout.Undefined ? 0 : AccessFlags2.MemoryReadBit | AccessFlags2.MemoryWriteBit,
++                DstAccessMask = AccessFlags2.MemoryReadBit | AccessFlags2.MemoryWriteBit,
++                SrcQueueFamilyIndex = Vk.QueueFamilyIgnored, DstQueueFamilyIndex = Vk.QueueFamilyIgnored,
++                SubresourceRange = range
++            };
++            void Transition(ImageMemoryBarrier2 barrier) => VulkanSynchronization.PipelineBarrier(_vk, _commandBuffer,
++                PipelineStageFlags.AllCommandsBit, PipelineStageFlags.AllCommandsBit, 0, 0, null, 0, null, 1, &barrier);
++            Transition(Barrier(target, targetOld, restore ? ImageLayout.TransferDstOptimal : ImageLayout.TransferSrcOptimal));
++            if (restore && !_browserBackgroundValid)
++            {
++                var black = new ClearColorValue(0f, 0f, 0f, 1f);
++                var clearRange = ColorSubresourceRange();
++                _vk.CmdClearColorImage(_commandBuffer, target, ImageLayout.TransferDstOptimal, &black, 1, &clearRange);
++            }
++            else
++            {
++                Transition(Barrier(_browserBackground, backgroundLayout,
++                    restore ? ImageLayout.TransferSrcOptimal : ImageLayout.TransferDstOptimal));
++                var copy = new ImageCopy
++                {
++                    SrcSubresource = new(ImageAspectFlags.ColorBit, 0, 0, 1),
++                    DstSubresource = new(ImageAspectFlags.ColorBit, 0, 0, 1), Extent = new(_extent.Width, _extent.Height, 1)
++                };
++                _vk.CmdCopyImage(_commandBuffer, restore ? _browserBackground : target, ImageLayout.TransferSrcOptimal,
++                    restore ? target : _browserBackground, ImageLayout.TransferDstOptimal, 1, &copy);
++                if (!restore)
++                {
++                    Transition(Barrier(_browserBackground, ImageLayout.TransferDstOptimal, ImageLayout.TransferSrcOptimal));
++                    _browserBackgroundValid = true;
++                }
++            }
++            Transition(Barrier(target, restore ? ImageLayout.TransferDstOptimal : ImageLayout.TransferSrcOptimal,
++                PresentationTargetFinalLayout));
++        }
++    }
++}
+--- a/src/SharpEmu.Libs/VideoOut/VulkanVideoPresenter.RenderLoop.cs
++++ b/src/SharpEmu.Libs/VideoOut/VulkanVideoPresenter.RenderLoop.cs
+@@ -240,7 +240,9 @@
+                 tookPresentation = true;
+             }
+ 
+-            if (!tookPresentation)
++            var menuRevision = BrowserGameMenu.Revision;
++            var hostRedraw = !tookPresentation && menuRevision != _browserPresentedRevision;
++            if (!tookPresentation && !hostRedraw)
+             {
+                 // A render-loop tick with no newer flip is normal.
+                 if (SharpEmu.Libs.Diagnostics.LoadProgressDiagnostics.IsActive ||
+@@ -278,11 +280,11 @@
+                     $"drawKind={presentation.DrawKind} hasPixels={presentation.Pixels is not null}");
+             }
+ 
+-            if (presentation.Pixels is null &&
++            if (!hostRedraw && presentation.Pixels is null &&
+                 presentation.DrawKind != GuestDrawKind.FullscreenBarycentric &&
+                 presentation.GuestImageAddress == 0)
+             {
+-                CompletePresentation(in presentation, presented: false);
++                if (!hostRedraw) CompletePresentation(in presentation, presented: false);
+                 return;
+             }
+ 
+@@ -299,7 +301,7 @@
+                         _extent.Height);
+                 if ((ulong)pixels.Length > _stagingSize)
+                 {
+-                    CompletePresentation(in presentation, presented: false);
++                    if (!hostRedraw) CompletePresentation(in presentation, presented: false);
+                     return;
+                 }
+ 
+@@ -325,7 +327,7 @@
+                         $"— no swapchain present this frame (black).");
+                 }
+ 
+-                CompletePresentation(in presentation, presented: false);
++                if (!hostRedraw) CompletePresentation(in presentation, presented: false);
+                 return;
+             }
+             if (ownsPresentedGuestImageVersion)
+@@ -381,7 +383,7 @@
+                     ownsPresentedGuestImageVersion,
+                     presentedGuestImage);
+ 
+-                CompletePresentation(in presentation, presented: false);
++                if (!hostRedraw) CompletePresentation(in presentation, presented: false);
+                 return;
+             }
+ 
+@@ -402,7 +404,12 @@
+             _commandBuffer = CurrentRecordingBuffer();
+ 
+             PipelineStageFlags waitStage;
+-            if (pixels is not null)
++            if (hostRedraw)
++            {
++                RecordBrowserBackground(imageIndex, restore: true);
++                waitStage = PipelineStageFlags.TransferBit;
++            }
++            else if (pixels is not null)
+             {
+                 RecordUpload(imageIndex, frameSlot);
+                 waitStage = PipelineStageFlags.TransferBit;
+@@ -444,6 +451,13 @@
+                     $"Unsupported translated guest draw: {presentation.DrawKind}.");
+             }
+ 
++            // Retain the host-composed image before any menu/statistics are drawn.
++            // It owns no guest image/version and uses the existing ordered graphics queue.
++            if (!hostRedraw)
++            {
++                RecordBrowserBackground(imageIndex, restore: false);
++                _browserBackgroundHdr = presentation.IsHdr;
++            }
+             if (PerfOverlay.DrawOnScreen)
+             {
+                 RecordOverlayBlit(imageIndex, frameSlot);
+@@ -451,7 +465,7 @@
+ 
+             if (_hdrOutputActive)
+             {
+-                RecordHdrPresentation(imageIndex, presentation.IsHdr);
++                RecordHdrPresentation(imageIndex, hostRedraw ? _browserBackgroundHdr : presentation.IsHdr);
+                 waitStage = PipelineStageFlags.ColorAttachmentOutputBit;
+             }
+ 
+@@ -488,15 +502,19 @@
+                 // The submitted frame still executes; RecreateSwapchainResources
+                 // drains it (and every frame slot) before destroying anything.
+                 RecreateSwapchainResources("vkQueuePresentKHR", presentResult);
+-                CompletePresentation(in presentation, presented: false);
++                if (!hostRedraw) CompletePresentation(in presentation, presented: false);
+                 return;
+             }
+ 
+             CheckSwapchainResult(presentResult, "vkQueuePresentKHR");
+             recreateAfterPresent |= presentResult == Result.SuboptimalKhr;
+-            VideoOutExports.ReportPresentedFrame();
+-            PerfOverlay.RecordPresent();
+-            RenderPhaseProfile.RecordFrame();
++            _browserPresentedRevision = menuRevision;
++            if (!hostRedraw)
++            {
++                VideoOutExports.ReportPresentedFrame();
++                PerfOverlay.RecordPresent();
++                RenderPhaseProfile.RecordFrame();
++            }
+             if (_swapchainReadbackPending)
+             {
+                 // Diagnostics read back GPU memory and need this frame done.
+@@ -507,6 +525,11 @@
+             CollectCompletedGuestSubmissions(waitForOldest: false);
+             _imageInitialized[imageIndex] = true;
+             _currentFrameSlot = (frameSlot + 1) % MaxFramesInFlight;
++            if (hostRedraw)
++            {
++                if (recreateAfterPresent) RecreateSwapchainResources("menu redraw suboptimal", Result.SuboptimalKhr);
++                return; // Host redraws never acknowledge guest flips or advance guest counters.
++            }
+             CompletePresentation(in presentation, presented: true);
+             if (presentation.IsSplash && !_splashPresented)
+             {
+--- a/src/SharpEmu.Libs/VideoOut/VulkanVideoPresenter.Present.Swapchain.cs
++++ b/src/SharpEmu.Libs/VideoOut/VulkanVideoPresenter.Present.Swapchain.cs
+@@ -570,6 +570,7 @@
+                 }
+             }
+             _renderFinishedPerImage = [];
++            DestroyBrowserBackground();
+             if (_overlayImage.Handle != 0)
+             {
+                 _vk.DestroyImage(_device, _overlayImage, null);
+--- /dev/null
++++ b/tests/SharpEmu.Libs.Tests/VideoOut/BrowserGameMenuTests.cs
+@@ -0,0 +1,123 @@
++using SDL;
++using SharpEmu.HLE.Host;
++using SharpEmu.Libs.Pad;
++using SharpEmu.Libs.VideoOut;
++using Xunit;
++
++namespace SharpEmu.Libs.Tests.VideoOut;
++
++[CollectionDefinition("Browser menu", DisableParallelization = true)]
++public sealed class BrowserMenuCollection { }
++
++[Collection("Browser menu")]
++public sealed class BrowserGameMenuTests
++{
++    [Fact]
++    public void ToggleResumeExitRepeatAndCancel()
++    {
++        HostWindowInput.Connect();
++        try
++        {
++            BrowserGameMenu.Close();
++            Assert.False(BrowserGameMenu.Key(SDL_Keycode.SDLK_A, true, false, out _));
++            Assert.True(BrowserGameMenu.Key(SDL_Keycode.SDLK_F10, true, false, out _));
++            Assert.True(BrowserGameMenu.Visible);
++            BrowserGameMenu.Key(SDL_Keycode.SDLK_F10, true, true, out _);
++            BrowserGameMenu.Key(SDL_Keycode.SDLK_F10, false, false, out _);
++            Assert.True(BrowserGameMenu.Visible);
++            BrowserGameMenu.Key(SDL_Keycode.SDLK_DOWN, true, false, out _);
++            BrowserGameMenu.Key(SDL_Keycode.SDLK_RETURN, true, true, out var exit);
++            Assert.False(exit);
++            BrowserGameMenu.Key(SDL_Keycode.SDLK_ESCAPE, true, false, out exit);
++            Assert.False(exit);
++            Assert.False(BrowserGameMenu.Visible);
++            BrowserGameMenu.Key(SDL_Keycode.SDLK_F10, true, false, out _);
++            Assert.False(BrowserGameMenu.ExitSelected);
++            BrowserGameMenu.Key(SDL_Keycode.SDLK_RETURN, true, false, out exit);
++            Assert.False(exit);
++            Assert.False(BrowserGameMenu.Visible);
++            BrowserGameMenu.Key(SDL_Keycode.SDLK_F10, true, false, out _);
++            BrowserGameMenu.Key(SDL_Keycode.SDLK_DOWN, true, false, out _);
++            BrowserGameMenu.Key(SDL_Keycode.SDLK_RETURN, true, false, out exit);
++            Assert.True(exit);
++            Assert.False(BrowserGameMenu.Visible);
++        }
++        finally { BrowserGameMenu.Close(); HostWindowInput.Disconnect(); }
++    }
++
++    [Fact]
++    public void CapturesKeyboardAndControllerUntilReleasedAndDrawsWithoutStats()
++    {
++        HostWindowInput.Connect();
++        try
++        {
++            BrowserGameMenu.Close();
++            var source = HostWindowInputSource.Current!;
++            HostWindowInput.SetKey(0x57, true);
++            BrowserGameMenu.Key(SDL_Keycode.SDLK_F10, true, false, out _);
++            Assert.True(PerfOverlay.DrawOnScreen);
++            HostWindowInput.SetKey(0x0D, true);
++            Assert.False(source.IsKeyDown(0x57));
++            Assert.False(source.IsKeyDown(0x0D));
++            var pad = new HostGamepadState(true, HostGamepadButtons.Cross, 128, 128, 128, 128, 0, 0);
++            HostWindowInput.SetGamepad("test", pad);
++            Span<HostGamepadState> snapshots = stackalloc HostGamepadState[1];
++            Assert.Equal(1, source.GetGamepadStates(snapshots));
++            Assert.Equal(HostGamepadButtons.None, snapshots[0].Buttons);
++            var pixels = new byte[PerfOverlay.PixelBufferWidth * PerfOverlay.PixelBufferHeight * 4];
++            PerfOverlay.Fill(pixels, 0, 0);
++            Assert.Contains((byte)0x60, pixels);
++            static bool HasWhiteGlyph(byte[] image, int firstY, int lastY)
++            {
++                for (var y = firstY; y < lastY; y++)
++                for (var x = 0; x < PerfOverlay.PixelBufferWidth; x++)
++                {
++                    var offset = (y * PerfOverlay.PixelBufferWidth + x) * 4;
++                    if (image[offset] == 0xFF && image[offset + 1] == 0xFF && image[offset + 2] == 0xFF) return true;
++                }
++                return false;
++            }
++            Assert.True(HasWhiteGlyph(pixels, 48, 64), "Continue is visible in the menu.");
++            Assert.True(HasWhiteGlyph(pixels, 82, 98), "Exit is visible in the menu.");
++            BrowserGameMenu.Close();
++            Assert.False(source.IsKeyDown(0x0D));
++            Assert.False(source.IsKeyDown(0x57));
++            HostWindowInput.SetGamepad("test", pad);
++            source.GetGamepadStates(snapshots);
++            Assert.Equal(HostGamepadButtons.None, snapshots[0].Buttons);
++            HostWindowInput.SetGamepad("test", pad with { Buttons = HostGamepadButtons.None });
++            HostWindowInput.SetGamepad("test", pad);
++            source.GetGamepadStates(snapshots);
++            Assert.Equal(HostGamepadButtons.Cross, snapshots[0].Buttons);
++            HostWindowInput.SetKey(0x57, false);
++            HostWindowInput.SetKey(0x57, true);
++            Assert.True(source.IsKeyDown(0x57));
++        }
++        finally { BrowserGameMenu.Close(); HostWindowInput.Disconnect(); }
++    }
++
++    [Fact]
++    public void ControllerAndPointerUseExplicitSelection()
++    {
++        HostWindowInput.Connect();
++        try
++        {
++            BrowserGameMenu.Close();
++            var neutral = new HostGamepadState(true, HostGamepadButtons.None, 128, 128, 128, 128, 0, 0);
++            BrowserGameMenu.Gamepad(neutral);
++            Assert.False(BrowserGameMenu.Gamepad(neutral with { Buttons = HostGamepadButtons.Ps }));
++            Assert.True(BrowserGameMenu.Visible);
++            Assert.False(BrowserGameMenu.Gamepad(neutral with { Buttons = HostGamepadButtons.Ps }));
++            Assert.True(BrowserGameMenu.Visible);
++            BrowserGameMenu.Gamepad(neutral with { Buttons = HostGamepadButtons.Down });
++            Assert.True(BrowserGameMenu.Gamepad(neutral with { Buttons = HostGamepadButtons.Cross }));
++            BrowserGameMenu.Key(SDL_Keycode.SDLK_F10, true, false, out _);
++            var rect = BrowserGameMenu.Rectangle(1280, 720);
++            Assert.True(BrowserGameMenu.Pointer(rect.Left + 20, rect.Top + 85, 1280, 720));
++            Assert.False(BrowserGameMenu.Visible);
++            BrowserGameMenu.Key(SDL_Keycode.SDLK_F10, true, false, out _);
++            Assert.True(BrowserGameMenu.Pointer(20, 85, 200, 100)); // Rendering crops; it never scales the menu.
++        }
++        finally { BrowserGameMenu.Close(); HostWindowInput.Disconnect(); }
++    }
++}
+--- /dev/null
++++ b/tests/SharpEmu.Libs.Tests/VideoOut/BrowserPresenterTests.cs
+@@ -0,0 +1,76 @@
++using SharpEmu.HLE.GpuMemory;
++using SharpEmu.ShaderCompiler;
++using System.Reflection;
++using SDL;
++using SharpEmu.HLE;
++using SharpEmu.Libs.Gpu;
++using SharpEmu.Libs.Tests.Gpu.Buffers;
++using SharpEmu.Libs.Tests.Gpu.Vulkan;
++using SharpEmu.Libs.VideoOut;
++using Xunit;
++
++namespace SharpEmu.Libs.Tests.VideoOut;
++
++[Collection("Browser menu")]
++public sealed unsafe class BrowserPresenterTests
++{
++    [Fact]
++    public void RealVulkanPresentsMenuAndResumeWithoutAnotherGuestFrame()
++    {
++        using var device = HeadlessVulkan.TryCreate() ?? throw new Exception("Vulkan device required for presenter smoke");
++        using var memory = new CacheHarness(device);
++        var previous = GuestGpuMemoryHook.Current;
++        GuestGpuMemoryHook.Attach(memory.Gpu);
++        var flags = BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance;
++        var statics = BindingFlags.NonPublic | BindingFlags.Static;
++        var presenterType = typeof(VulkanVideoPresenter).GetNestedType("Presenter", BindingFlags.NonPublic)!;
++        var presentationType = typeof(VulkanVideoPresenter).GetNestedType("Presentation", BindingFlags.NonPublic)!;
++        object? presenter = null;
++        void Call(string name) => presenterType.GetMethod(name, flags)!.Invoke(presenter, null);
++        T Field<T>(string name) => (T)presenterType.GetField(name, flags)!.GetValue(presenter)!;
++        try
++        {
++            VulkanVideoPresenter.TryConfigureVideo(new() { Width = 640, Height = 360, OverlayEnabled = false, HdrMode = HostHdrMode.Off });
++            presenter = Activator.CreateInstance(presenterType, flags, null, [640u, 360u], null)!;
++            Call("Initialize");
++            var pixels = new byte[640 * 360 * 4];
++            for (var i = 0; i < pixels.Length; i += 4) { pixels[i] = 0x55; pixels[i + 3] = 0xff; }
++            var frame = Activator.CreateInstance(presentationType, flags, null,
++                [pixels, 640u, 360u, 1L, GuestDrawKind.None, false, 0UL, 0L, false, 0UL, 0UL, null], null);
++            typeof(VulkanVideoPresenter).GetField("_latestPresentation", statics)!.SetValue(null, frame);
++            for (var i = 0; i < 8 && !Field<bool>("_browserBackgroundValid"); i++) Call("RenderCore");
++            Assert.True(Field<bool>("_browserBackgroundValid"));
++            var guestSequence = Field<long>("_presentedSequence");
++            var window = presenterType.GetField("_window", flags)!.GetValue(presenter)!;
++            void PumpKey(SDL_Keycode key)
++            {
++                var input = new SDL_Event();
++                input.key.type = SDL_EventType.SDL_EVENT_KEY_DOWN;
++                input.key.key = key;
++                Assert.True(SDL.SDL3.SDL_PushEvent(&input));
++                window.GetType().GetMethod("PumpEvents", flags)!.Invoke(window, null);
++            }
++            void Redraw()
++            {
++                for (var i = 0; i < 8 && Field<long>("_browserPresentedRevision") != BrowserGameMenu.Revision; i++) Call("RenderCore");
++                Assert.Equal(BrowserGameMenu.Revision, Field<long>("_browserPresentedRevision"));
++                Assert.Equal(guestSequence, Field<long>("_presentedSequence"));
++            }
++            PumpKey(SDL_Keycode.SDLK_F10); Assert.True(BrowserGameMenu.Visible); Redraw();
++            PumpKey(SDL_Keycode.SDLK_DOWN); Assert.True(BrowserGameMenu.ExitSelected); Redraw();
++            PumpKey(SDL_Keycode.SDLK_ESCAPE); Assert.False(BrowserGameMenu.Visible); Redraw();
++            PumpKey(SDL_Keycode.SDLK_F10); Redraw();
++            PumpKey(SDL_Keycode.SDLK_F10); Assert.False(BrowserGameMenu.Visible); Redraw();
++            PumpKey(SDL_Keycode.SDLK_F10); Redraw();
++            PumpKey(SDL_Keycode.SDLK_DOWN); PumpKey(SDL_Keycode.SDLK_RETURN);
++            Assert.True((bool)window.GetType().GetProperty("ClosedByUser")!.GetValue(window)!);
++            Console.WriteLine("PASS real SDL/Vulkan menu open, select, cancel, repeated toggle, resume and normal window-close request with no new guest flips");
++        }
++        finally
++        {
++            BrowserGameMenu.Close();
++            if (presenter is IDisposable owned) owned.Dispose();
++            GuestGpuMemoryHook.Attach(previous);
++        }
++    }
++}

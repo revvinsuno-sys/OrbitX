@@ -1,0 +1,59 @@
+/* Settings stays inside each interface's existing header, body, input loop and footer. */
+.app.settings-active { background: linear-gradient(180deg, #030d1760, #030d17ee), var(--settings-background) center top / cover fixed; }
+.settings-active .backdrop { visibility: hidden; }
+.orbit-settings { max-width: none; min-width: 0; padding-bottom: 32px; }
+.orbit-settings .settings-title { margin-bottom: 12px; }
+.iface-shell .orbit-settings .settings-title { display: none; }
+.settings-breadcrumb { display: flex; gap: 12px; align-items: center; margin-bottom: 20px; }
+.settings-breadcrumb button { border: 0; background: transparent; color: inherit; padding: 4px 0; }
+.orbit-settings .settings-tiles.game-rail { --settings-unit: clamp(128px, 10vw, 170px); gap: 18px; margin-bottom: 16px; align-items: stretch; }
+.settings-home .settings-tiles.game-rail { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); min-height: calc(100dvh - 230px); align-content: space-between; overflow: visible; }
+.settings-tiles > button { position: relative; display: block; flex: 0 0 var(--settings-unit); aspect-ratio: 1; text-align: left; padding: 0; border: 0; border-radius: 0; background: #071827; box-shadow: none; min-width: 0; color: inherit; }
+.settings-home .settings-tiles > button { aspect-ratio: 2; }
+.settings-tiles > button::after { content: ''; position: absolute; inset: 30% 0 0; background: linear-gradient(transparent, #020b15e8); pointer-events: none; }
+.settings-tiles > button:hover { background: #ffffff0a; }
+.settings-tiles > button[aria-current=page] strong { color: var(--accent, #71cdff); }
+.settings-detail .settings-tiles > button { opacity: .9; }
+.settings-detail .settings-tiles > button[aria-current=page] { opacity: 1; }
+.settings-tiles > button:focus-visible { outline: 3px solid #ffe39b; outline-offset: 5px; }
+.settings-tile-art { position: absolute; inset: 0; width: 100%; height: 100%; overflow: hidden; }
+.settings-tile-art > svg { display: block; width: 100%; height: 100%; overflow: hidden; }
+.settings-tile-caption { position: absolute; z-index: 1; bottom: 12px; left: 14px; right: 14px; display: flex; flex-direction: column; gap: 4px; }
+.settings-tiles strong { font-size: .95rem; line-height: 1.2; overflow-wrap: anywhere; }
+.settings-home .settings-tiles strong { font-size: clamp(16px, 1.25vw, 22px); }
+.settings-tile-status { color: #c0d1e1; font-size: .85em; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+@media (min-width: 1600px) { .settings-home .settings-tiles.game-rail { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (max-width: 1000px) { .settings-home .settings-tiles.game-rail { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.orbit-settings-content { min-width: 0; outline: none; }
+.orbit-settings-panel { background: linear-gradient(115deg, #081e30de, #07131ecc); padding: 22px; margin: 0 0 18px; min-width: 0; }
+.orbit-settings-panel h2 { margin: 0 0 12px; }
+.orbit-settings-panel p { color: #c7d8e8; overflow-wrap: anywhere; }
+.orbit-settings-panel a { color: #71cdff; text-decoration: underline; }
+.orbit-settings-panel a:focus-visible { outline: 3px solid #ffe39b; outline-offset: 4px; }
+.settings-field { display: flex; flex-direction: column; gap: 7px; margin: 16px 0; min-width: 0; }
+.settings-field input, .settings-field select { width: 100%; min-width: 0; box-sizing: border-box; min-height: 42px; }
+.settings-actions, .settings-status-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 12px 0; }
+.orbit-settings button:not(.settings-tiles button):not(.settings-breadcrumb button) { min-height: 42px; }
+.settings-toggle { display: flex; align-items: center; gap: 10px; margin: 15px 0; min-height: 30px; }
+.settings-toggle input { width: 20px; height: 20px; flex: 0 0 auto; }
+.settings-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 430px), 1fr)); gap: 12px 28px; }
+.settings-facts > div { display: grid; grid-template-columns: minmax(125px, .7fr) minmax(0, 1.3fr); gap: 14px; }
+.settings-facts dt { color: #bdd3e8; }
+.settings-facts dd { margin: 0; overflow-wrap: anywhere; user-select: text; }
+.settings-status { display: flex; align-items: baseline; gap: 8px; }
+.settings-field-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; }
+.orbit-settings-panel pre { white-space: pre-wrap; overflow-wrap: anywhere; overflow-y: auto; max-height: 280px; padding: 16px; background: #020a12a0; font: .9em/1.6 Consolas, monospace; }
+.orbit-settings-panel summary { padding: 14px 0; cursor: pointer; }
+.orbit-settings-panel fieldset { border: 0; padding: 0; min-width: 0; }
+.settings-source-list { display: grid; gap: 10px; margin: 16px 0; }
+.settings-source-list > button { display: flex; flex-direction: column; gap: 6px; text-align: left; min-width: 0; }
+.settings-source-list > button > span { overflow-wrap: anywhere; }
+.settings-source-list [aria-pressed=true] { outline: 2px solid var(--accent, #71cdff); }
+.settings-passwords { padding: 0; list-style: none; }
+.settings-passwords li { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 10px 0; }
+.settings-passwords li > span:first-child { min-width: 110px; }
+.settings-page-status { color: #bdd3e8; font-size: .85em; overflow-wrap: anywhere; }
+.orbit-settings .updates-panel { max-width: none; }
+.orbit-settings input:focus-visible, .orbit-settings select:focus-visible, .orbit-settings button:focus-visible, .orbit-settings summary:focus-visible, .orbit-settings pre:focus-visible { outline: 3px solid #ffe39b; outline-offset: 3px; }
+@media (max-width: 1000px) { .orbit-settings-panel { padding: 18px; } }
+@media (max-width: 600px) { .settings-facts > div { grid-template-columns: 1fr; gap: 4px; } }

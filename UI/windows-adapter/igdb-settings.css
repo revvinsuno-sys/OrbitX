@@ -1,0 +1,4 @@
+.igdb-settings { display: grid; gap: 12px; max-width: 560px; }
+.igdb-settings label { display: grid; gap: 6px; }
+.igdb-settings input { width: 100%; min-height: 42px; padding: 8px 10px; color: inherit; background: var(--panel, #151c2a); border: 1px solid var(--line, #4c5566); border-radius: 6px; }
+.igdb-settings button { justify-self: start; min-height: 42px; padding: 8px 14px; }

@@ -1,0 +1,411 @@
+diff --git a/ThirdParty/LibProsperoPkg/upstream/PFS/Compression/ProsperoCompressedPfsFile.cs b/ThirdParty/LibProsperoPkg/upstream/PFS/Compression/ProsperoCompressedPfsFile.cs
+index 209751c..f483d7d 100644
+--- a/ThirdParty/LibProsperoPkg/upstream/PFS/Compression/ProsperoCompressedPfsFile.cs
++++ b/ThirdParty/LibProsperoPkg/upstream/PFS/Compression/ProsperoCompressedPfsFile.cs
+@@ -283 +283,6 @@ public sealed class ProsperoCompressedPfsFile
+-    public static ProsperoCompressedPfsFile Parse(ReadOnlyMemory<byte> buffer)
++    public static ProsperoCompressedPfsFile Parse(ReadOnlyMemory<byte> buffer) => ParseCore(buffer, buffer.Length, false);
++
++    internal static ProsperoCompressedPfsFile ParseMetadata(ReadOnlyMemory<byte> metadata, long sourceLength)
++        => ParseCore(metadata, sourceLength, true);
++
++    private static ProsperoCompressedPfsFile ParseCore(ReadOnlyMemory<byte> buffer, long sourceLength, bool metadataOnly)
+@@ -303 +308 @@ public sealed class ProsperoCompressedPfsFile
+-        var blocks = ReadBlocks(buffer, span, sections, dataOffset);
++        var blocks = ReadBlocks(buffer, span, sections, dataOffset, sourceLength, metadataOnly);
+@@ -371 +376 @@ public sealed class ProsperoCompressedPfsFile
+-        long dataOffset)
++        long dataOffset, long sourceLength, bool metadataOnly)
+@@ -407 +412 @@ public sealed class ProsperoCompressedPfsFile
+-            if (!InRange(span.Length, absOffset, compSize))
++            if (!InRange(sourceLength, absOffset, compSize))
+@@ -439 +444 @@ public sealed class ProsperoCompressedPfsFile
+-                CompressedData = buffer.Slice((int)absOffset, compSize),
++                CompressedData = metadataOnly ? ReadOnlyMemory<byte>.Empty : buffer.Slice((int)absOffset, compSize),
+@@ -453,2 +458,2 @@ public sealed class ProsperoCompressedPfsFile
+-    private static bool InRange(int length, long offset, long size)
+-        => offset >= 0 && size >= 0 && offset + size <= length;
++    private static bool InRange(long length, long offset, long size)
++        => offset >= 0 && size >= 0 && offset <= length && size <= length - offset;
+diff --git a/ThirdParty/LibProsperoPkg/upstream/PFS/ProsperoPs5InnerImageReader.cs b/ThirdParty/LibProsperoPkg/upstream/PFS/ProsperoPs5InnerImageReader.cs
+--- a/ThirdParty/LibProsperoPkg/upstream/PFS/ProsperoPs5InnerImageReader.cs
++++ b/ThirdParty/LibProsperoPkg/upstream/PFS/ProsperoPs5InnerImageReader.cs
+@@ -20,0 +21,2 @@
++using System.IO;
++using LibProsperoPkg.Util;
+@@ -159 +161,11 @@
+-        ReadOnlySpan<byte> sb = mount.AsSpan((int)metaBase);
++        using var input = new LibProsperoPkg.Util.StreamReader(new MemoryStream(mount, writable: false), takeOwnership: true);
++        return ReadFileTree(input, mount.LongLength, metaBase);
++    }
++
++    /// <summary>Reads metadata through a bounded reader without materializing the logical image.</summary>
++    public static IReadOnlyList<ProsperoPs5InnerFileEntry> ReadFileTree(IMemoryReader mount, long mountLength, long metaBase)
++    {
++        if (metaBase < 0 || mountLength < 0x70 || metaBase > mountLength - 0x70)
++            throw new InvalidDataException("Inner superblock is outside its image.");
++        var header = new byte[0x70]; mount.Read(metaBase, header, 0, header.Length);
++        ReadOnlySpan<byte> sb = header;
+@@ -162,14 +174,18 @@
+-            throw new InvalidOperationException("Inner mount metadata does not start with a PS5 PFS superblock.");
+-
+-        int blockSize = (int)System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(sb[0x20..]);
+-        int inodeCount = (int)System.Buffers.Binary.BinaryPrimitives.ReadInt64LittleEndian(sb[0x30..]);
+-        if (blockSize <= 0 || inodeCount <= 0 || inodeCount > 1_000_000)
+-            throw new InvalidOperationException("Implausible inner metadata superblock (block size / inode count).");
+-
+-        // Parse the inode table (block 1). PS5 inner inode: Mode@0, Size@8, LogicalOffset@0x60, parent@0x6c.
+-        long inodeTable = metaBase + blockSize;
+-        var nodes = new InnerInode[inodeCount];
+-        for (int i = 0; i < inodeCount; i++)
+-        {
+-            ReadOnlySpan<byte> e = mount.AsSpan((int)(inodeTable + i * 0xA8), 0xA8);
+-            nodes[i] = new InnerInode
++            throw new InvalidDataException("Inner mount metadata does not start with a PS5 PFS superblock.");
++        uint blockSize = System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(sb[0x20..]);
++        long inodeCount = System.Buffers.Binary.BinaryPrimitives.ReadInt64LittleEndian(sb[0x30..]);
++        if (blockSize < 0xa8 || blockSize > 0x100000 || inodeCount <= 0 || inodeCount > 1_000_000)
++            throw new InvalidDataException("Implausible inner metadata block size / inode count.");
++        long inodeTable = checked(metaBase + blockSize);
++        long inodesPerBlock = blockSize / 0xa8;
++        long lastInodeEnd = checked(inodeTable + ((inodeCount - 1) / inodesPerBlock) * blockSize + ((inodeCount - 1) % inodesPerBlock + 1) * 0xa8);
++        if (lastInodeEnd > mountLength)
++            throw new InvalidDataException("Inner inode table is outside its image.");
++        var nodes = new InnerInode[(int)inodeCount];
++        var bytes = new byte[0xa8];
++        for (int i = 0; i < nodes.Length; i++)
++        {
++            long inodePosition = inodeTable + (i / inodesPerBlock) * blockSize + (i % inodesPerBlock) * bytes.Length;
++            mount.Read(inodePosition, bytes, 0, bytes.Length);
++            ReadOnlySpan<byte> entry = bytes;
++            var node = new InnerInode
+@@ -177,3 +193,3 @@
+-                Mode = System.Buffers.Binary.BinaryPrimitives.ReadUInt16LittleEndian(e),
+-                Size = System.Buffers.Binary.BinaryPrimitives.ReadInt64LittleEndian(e[8..]),
+-                LogicalOffset = System.Buffers.Binary.BinaryPrimitives.ReadUInt64LittleEndian(e[0x60..]),
++                Mode = System.Buffers.Binary.BinaryPrimitives.ReadUInt16LittleEndian(entry),
++                Size = System.Buffers.Binary.BinaryPrimitives.ReadInt64LittleEndian(entry[8..]),
++                LogicalOffset = System.Buffers.Binary.BinaryPrimitives.ReadUInt64LittleEndian(entry[0x60..]),
+@@ -181,3 +197,4 @@
+-        }
+-
+-        // Walk the directory tree from the super-root (inode 0), collecting files under "uroot".
++            if (node.Size < 0 || node.LogicalOffset > (ulong)mountLength || (ulong)node.Size > (ulong)mountLength - node.LogicalOffset)
++                throw new InvalidDataException("Inner inode data is outside its image.");
++            nodes[i] = node;
++        }
+@@ -185 +202 @@
+-        WalkDir(mount, blockSize, nodes, 0, "", underUroot: false, files, new HashSet<uint>());
++        WalkDir(mount, mountLength, nodes, 0, "", false, files, new HashSet<uint>());
+@@ -197 +214 @@
+-    private static void WalkDir(byte[] mount, int blockSize, InnerInode[] nodes, uint dirInode,
++    private static void WalkDir(IMemoryReader mount, long mountLength, InnerInode[] nodes, uint dirInode,
+@@ -200,26 +217,22 @@
+-        if (dirInode >= nodes.Length || !seen.Add(dirInode))
+-            return;
+-        InnerInode dir = nodes[dirInode];
+-        if (!dir.IsDirectory || dir.Size <= 0)
+-            return;
+-
+-        long start = (long)dir.LogicalOffset;
+-        long end = Math.Min(start + dir.Size, mount.Length);
+-        using var ms = new System.IO.MemoryStream(mount, (int)start, (int)(end - start), writable: false);
+-        while (ms.Position + 0x10 <= ms.Length)
+-        {
+-            long entryPos = ms.Position;
+-            ProsperoPfsDirent d;
+-            try { d = ProsperoPfsDirent.ReadFromStream(ms); }
+-            catch { break; }
+-            if (d.EntSize <= 0) break;
+-            ms.Position = entryPos + d.EntSize;
+-
+-            string name = d.Name;
+-            if (string.IsNullOrEmpty(name) || name == "." || name == "..")
+-                continue;
+-            if (d.InodeNumber >= nodes.Length)
+-                continue;
+-
+-            // The super-root wraps the content under "uroot" (its other children are internal flat-path
+-            // tables); only files at or below uroot are real package content.
++        if (dirInode >= nodes.Length) throw new InvalidDataException("Invalid inner directory inode.");
++        if (!seen.Add(dirInode)) return;
++        var dir = nodes[dirInode];
++        if (!dir.IsDirectory || dir.Size <= 0) return;
++        if (path.Count(c => c == '/') > 128) throw new InvalidDataException("Inner directory nesting is too deep.");
++        using var input = new ProsperoReaderStream(mount, checked((long)dir.LogicalOffset), dir.Size);
++        var recordHeader = new byte[16];
++        while (input.Position + 0x10 <= input.Length)
++        {
++            long entryPosition = input.Position;
++            input.ReadExactly(recordHeader);
++            int nameLength = System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(recordHeader.AsSpan(8));
++            int recordLength = System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(recordHeader.AsSpan(12));
++            if (recordLength == 0) break;
++            if (recordLength < 0x10 || recordLength > input.Length - entryPosition || nameLength < 0 || nameLength > recordLength - 16)
++                throw new InvalidDataException("Invalid inner directory record length.");
++            input.Position = entryPosition;
++            var entry = ProsperoPfsDirent.ReadFromStream(input);
++            input.Position = entryPosition + entry.EntSize;
++            string name = entry.Name;
++            if (string.IsNullOrEmpty(name) || name == "." || name == "..") continue;
++            if (entry.InodeNumber >= nodes.Length) throw new InvalidDataException("Invalid inner directory entry inode.");
+@@ -227,13 +240,5 @@
+-            string childPath = path.Length == 0
+-                ? (name == "uroot" ? "" : name)
+-                : path + "/" + name;
+-
+-            if (d.Type == ProsperoDirentType.Directory)
+-                WalkDir(mount, blockSize, nodes, d.InodeNumber, childPath, childUnderUroot, files, seen);
+-            else if (d.Type == ProsperoDirentType.File && underUroot && childPath.Length > 0)
+-                files.Add(new ProsperoPs5InnerFileEntry
+-                {
+-                    Path = childPath,
+-                    LogicalOffset = nodes[d.InodeNumber].LogicalOffset,
+-                    Size = nodes[d.InodeNumber].Size,
+-                });
++            string childPath = path.Length == 0 ? name == "uroot" ? "" : name : path + "/" + name;
++            if (entry.Type == ProsperoDirentType.Directory)
++                WalkDir(mount, mountLength, nodes, entry.InodeNumber, childPath, childUnderUroot, files, seen);
++            else if (entry.Type == ProsperoDirentType.File && underUroot && childPath.Length > 0)
++                files.Add(new ProsperoPs5InnerFileEntry { Path = childPath, LogicalOffset = nodes[entry.InodeNumber].LogicalOffset, Size = nodes[entry.InodeNumber].Size });
+diff --git a/ThirdParty/LibProsperoPkg/upstream/PKG/ProsperoPackageExtractor.cs b/ThirdParty/LibProsperoPkg/upstream/PKG/ProsperoPackageExtractor.cs
+index 5f27ebd..2e9e177 100644
+--- a/ThirdParty/LibProsperoPkg/upstream/PKG/ProsperoPackageExtractor.cs
++++ b/ThirdParty/LibProsperoPkg/upstream/PKG/ProsperoPackageExtractor.cs
+@@ -24,0 +25,2 @@ using System.Linq;
++using System.Security.Cryptography;
++using System.Threading;
+@@ -175 +177 @@ public static class ProsperoPackageExtractor
+-        ProsperoExtractionOptions? options = null, Action<string>? logger = null)
++        ProsperoExtractionOptions? options = null, Action<string>? logger = null, CancellationToken cancellation = default)
+@@ -227 +229 @@ public static class ProsperoPackageExtractor
+-                ?? OpenDataFirstOuter(pkgStream, pfsOffset, pfsSize, superblockAbs, candidates, out usedEkpfs)
++                ?? OpenDataFirstOuter(pkgStream, pfsOffset, pfsSize, superblockAbs, candidates, out usedEkpfs, cancellation)
+@@ -270 +272 @@ public static class ProsperoPackageExtractor
+-                entries = ExtractNwonlyInner(onDisk, innerOuterFile, napsFile!, outputDirectory, log);
++                entries = ExtractNwonlyInner(onDisk, innerOuterFile, napsFile!, outputDirectory, log, cancellation);
+@@ -288,5 +290 @@ public static class ProsperoPackageExtractor
+-                        long onDiskSize = innerOuterFile.compressed_size > 0 ? innerOuterFile.compressed_size : innerOuterFile.size;
+-                        byte[] container = new byte[onDiskSize];
+-                        onDisk.Read(0, container, 0, (int)onDiskSize);
+-                        byte[] plainInner = LibProsperoPkg.PFS.Compression.ProsperoCompressedPfsFile.Parse(container).Decompress();
+-                        innerImage = new LibProsperoPkg.Util.StreamReader(new MemoryStream(plainInner), 0, takeOwnership: true);
++                        innerImage = new ProsperoCompressedImageReader(onDisk, innerOuterFile.size, cancellation);
+@@ -348 +346 @@ public static class ProsperoPackageExtractor
+-        string packagePath, ProsperoExtractionKey key, Action<string>? logger = null)
++        string packagePath, ProsperoExtractionKey key, Action<string>? logger = null, CancellationToken cancellation = default)
+@@ -382 +380 @@ public static class ProsperoPackageExtractor
+-                ?? OpenDataFirstOuter(pkgStream, pfsOffset, pfsSize, superblockAbs, candidates, out usedEkpfs)
++                ?? OpenDataFirstOuter(pkgStream, pfsOffset, pfsSize, superblockAbs, candidates, out usedEkpfs, cancellation)
+@@ -398 +396 @@ public static class ProsperoPackageExtractor
+-            return ListNwonlyInner(onDisk, innerOuterFile, napsFile);
++            return ListNwonlyInner(onDisk, innerOuterFile, napsFile, cancellation);
+@@ -410,5 +408 @@ public static class ProsperoPackageExtractor
+-                long onDiskSize = innerOuterFile.compressed_size > 0 ? innerOuterFile.compressed_size : innerOuterFile.size;
+-                byte[] container = new byte[onDiskSize];
+-                onDisk.Read(0, container, 0, (int)onDiskSize);
+-                byte[] plainInner = LibProsperoPkg.PFS.Compression.ProsperoCompressedPfsFile.Parse(container).Decompress();
+-                innerImage = new LibProsperoPkg.Util.StreamReader(new MemoryStream(plainInner), 0, takeOwnership: true);
++                innerImage = new ProsperoCompressedImageReader(onDisk, innerOuterFile.size, cancellation);
+@@ -433 +427 @@ public static class ProsperoPackageExtractor
+-        IMemoryReader innerOnDisk, ProsperoPfsReader.File innerFile, ProsperoPfsReader.File napsFile)
++        IMemoryReader innerOnDisk, ProsperoPfsReader.File innerFile, ProsperoPfsReader.File napsFile, CancellationToken cancellation)
+@@ -435,22 +429,2 @@ public static class ProsperoPackageExtractor
+-        long innerAvail = innerFile.size;
+-        long mountSize = innerFile.compressed_size > innerFile.size ? innerFile.compressed_size : 0;
+-        byte[] innerBytes = new byte[innerAvail];
+-        innerOnDisk.Read(0, innerBytes, 0, (int)innerAvail);
+-
+-        long napsSize = napsFile.size;
+-        byte[] napsBytes = new byte[napsSize];
+-        napsFile.GetView().Read(0, napsBytes, 0, (int)napsSize);
+-
+-        ProsperoPs5InnerMountResult mountResult;
+-        IReadOnlyList<ProsperoPs5InnerFileEntry> tree;
+-        try
+-        {
+-            mountResult = ProsperoPs5InnerImageReader.ReconstructMount(innerBytes, napsBytes, mountSize);
+-            tree = ProsperoPs5InnerImageReader.ReadFileTree(mountResult.Mount, mountResult.SuperblockOffset);
+-        }
+-        catch (Exception ex)
+-        {
+-            throw new ProsperoExtractionException(
+-                "Failed to decode the data-first inner image via naps_pkg_layout.dat.", ex);
+-        }
+-
++        using var inner = OpenNwonlyInner(innerOnDisk, innerFile, napsFile, cancellation);
++        var tree = ProsperoPs5InnerImageReader.ReadFileTree(inner, inner.Length, inner.FindSuperblock());
+@@ -512 +486 @@ public static class ProsperoPackageExtractor
+-    /// Decrypts the image in memory (bootstrapping the pfs_image.dat block range from an all-signed probe pass) and
++    /// Decrypts blocks on demand (bootstrapping the pfs_image.dat extent from an all-signed metadata probe) and
+@@ -517 +491 @@ public static class ProsperoPackageExtractor
+-        IReadOnlyList<byte[]> candidates, out byte[]? used)
++        IReadOnlyList<byte[]> candidates, out byte[]? used, CancellationToken cancellation)
+@@ -518,0 +493 @@ public static class ProsperoPackageExtractor
++        cancellation.ThrowIfCancellationRequested();
+@@ -524,7 +499,3 @@ public static class ProsperoPackageExtractor
+-        int total = (int)(imageSize / BS);
+-        int sbBlock = (int)(sbRel / BS);
+-        if (sbBlock >= total) return null;
+-
+-        byte[] image = new byte[imageSize];
+-        pkgStream.Position = imageOffset;
+-        ReadExactly(pkgStream, image, (int)imageSize);
++        long total = imageSize / BS;
++        long sbBlock = sbRel / BS;
++        if (sbBlock >= total || imageOffset < 0 || imageOffset > pkgStream.Length || imageSize > pkgStream.Length - imageOffset) return null;
+@@ -532 +503,3 @@ public static class ProsperoPackageExtractor
+-        // The superblock block is stored plaintext — read its seed for key derivation.
++        var header = new byte[0x400];
++        pkgStream.Position = imageOffset + sbRel;
++        ReadExactly(pkgStream, header, header.Length);
+@@ -534,5 +507 @@ public static class ProsperoPackageExtractor
+-        try
+-        {
+-            using var ms0 = new MemoryStream(image, sbBlock * BS, 0x400, writable: false);
+-            sb = ProsperoPfsHeader.ReadFromStream(ms0);
+-        }
++        try { using var metadata = new MemoryStream(header, writable: false); sb = ProsperoPfsHeader.ReadFromStream(metadata); }
+@@ -541 +510,17 @@ public static class ProsperoPackageExtractor
+-        byte[] seed = sb.Seed;
++
++        // Decrypted debug images can retain the Encrypted mode bit. Recognise plaintext metadata
++        // by its signed SHA3 digest, rather than selecting it just because a candidate key failed.
++        long inodeBlock = sb.InodeBlockSig.StartBlock;
++        if (inodeBlock > 0 && inodeBlock < total)
++        {
++            var rawInodes = new byte[BS];
++            pkgStream.Position = checked(imageOffset + inodeBlock * BS);
++            ReadExactly(pkgStream, rawInodes, rawInodes.Length);
++            if (SHA3_256.HashData(rawInodes).AsSpan().SequenceEqual(header.AsSpan(ProsperoOuterPfsSignature.SuperblockRootHashOffset, 32)))
++            {
++                var raw = new ProsperoOuterImageReader(pkgStream, imageOffset, imageSize, sbBlock, Array.Empty<byte>(), Array.Empty<byte>(), cancellation: cancellation, plaintext: true);
++                var reader = new ProsperoPfsReader(raw, 0, null, null, null, sbRel, skipDecryption: true);
++                _ = reader.GetAllFiles().Any();
++                return reader;
++            }
++        }
+@@ -548,20 +533,4 @@ public static class ProsperoPackageExtractor
+-                    var (tweak, data) = Crypto.PfsGenEncKey(ekpfs, seed, newCrypt);
+-
+-                    // Phase 1 (probe): decrypt every non-superblock block as SIGNED so the directory tree + inodes
+-                    // (which really are signed metadata) parse; pfs_image.dat's own bytes stay garbage for now.
+-                    var kinds = new ProsperoOuterBlockKind[total];
+-                    for (int i = 0; i < total; i++) kinds[i] = ProsperoOuterBlockKind.Signed;
+-                    kinds[sbBlock] = ProsperoOuterBlockKind.Plaintext;
+-                    byte[] probe = (byte[])image.Clone();
+-                    ProsperoOuterPfsImage.Transform(probe, tweak, data, BS, kinds, encrypt: false);
+-
+-                    ProsperoPfsReader probeReader;
+-                    try
+-                    {
+-                        probeReader = new ProsperoPfsReader(
+-                            new LibProsperoPkg.Util.StreamReader(new MemoryStream(probe), 0, takeOwnership: true),
+-                            0, null, null, null, (long)sbBlock * BS, skipDecryption: true);
+-                    }
+-                    catch { continue; } // wrong key/scheme: the structure did not decrypt
+-
+-                    // Phase 2: mark pfs_image.dat's data blocks as PLAIN and re-decrypt a fresh copy correctly.
++                    var (tweak, data) = Crypto.PfsGenEncKey(ekpfs, sb.Seed, newCrypt);
++                    using var probe = new ProsperoOuterImageReader(pkgStream, imageOffset, imageSize, sbBlock, tweak, data, cancellation: cancellation);
++                    var probeReader = new ProsperoPfsReader(probe, 0, null, null, null, sbRel, skipDecryption: true);
++                    var files = probeReader.GetAllFiles().ToArray();
+@@ -569,23 +538,5 @@ public static class ProsperoPackageExtractor
+-                    if (pfsImg != null)
+-                    {
+-                        long startBlk = pfsImg.offset / BS;
+-                        // The pfs_image.dat data region runs from its start block up to the NEXT outer file (the naps,
+-                        // which is signed) or the superblock. Its inode compressed_size is the inner mount's LOGICAL
+-                        // size (which can exceed the whole outer image, e.g. DebugSettings 0x920000 > 0x540000), so it
+-                        // must NOT bound the on-disk block span — doing so over-marks the naps + signed metadata blocks
+-                        // as Data and corrupts the decrypt. Bound the region by the next file/superblock instead.
+-                        long endBlk = sbBlock;
+-                        foreach (var f in probeReader.GetAllFiles())
+-                        {
+-                            long fb = f.offset / BS;
+-                            if (fb > startBlk && fb < endBlk) endBlk = fb;
+-                        }
+-                        for (long b = startBlk; b < endBlk && b < total; b++)
+-                            if ((int)b != sbBlock) kinds[(int)b] = ProsperoOuterBlockKind.Data;
+-                    }
+-
+-                    byte[] plain = (byte[])image.Clone();
+-                    ProsperoOuterPfsImage.Transform(plain, tweak, data, BS, kinds, encrypt: false);
+-                    var reader = new ProsperoPfsReader(
+-                        new LibProsperoPkg.Util.StreamReader(new MemoryStream(plain), 0, takeOwnership: true),
+-                        0, null, null, null, (long)sbBlock * BS, skipDecryption: true);
++                    long dataStart = pfsImg is null ? 0 : pfsImg.offset / BS;
++                    long dataEnd = pfsImg is null ? 0 : files.Select(file => file.offset / BS)
++                        .Where(block => block > dataStart && block < sbBlock).DefaultIfEmpty(sbBlock).Min();
++                    var plain = new ProsperoOuterImageReader(pkgStream, imageOffset, imageSize, sbBlock, tweak, data, dataStart, dataEnd, cancellation);
++                    var reader = new ProsperoPfsReader(plain, 0, null, null, null, sbRel, skipDecryption: true);
+@@ -596 +547 @@ public static class ProsperoPackageExtractor
+-                catch
++                catch (Exception ex) when (ex is not OperationCanceledException)
+@@ -598 +549 @@ public static class ProsperoPackageExtractor
+-                    // Wrong key/newCrypt scheme; try the next combination.
++                    // A candidate is accepted only if its decrypted filesystem metadata parses.
+@@ -644 +595 @@ public static class ProsperoPackageExtractor
+-        string outputDirectory, Action<string> log)
++        string outputDirectory, Action<string> log, CancellationToken cancellation)
+@@ -646,27 +597,2 @@ public static class ProsperoPackageExtractor
+-        // The inner pfs_image.dat's on-disk bytes span its outer blocks (compressed_size is the logical
+-        // mount size, which overshoots the stored data), so read the block-backed extent of the view.
+-        // For a data-first inner, the inode's `size` is the on-disk stored length and `compressed_size`
+-        // is the (larger) logical mount size (Ndblock*64K). Read the stored bytes; mount to the logical size.
+-        long innerAvail = innerFile.size;
+-        long mountSize = innerFile.compressed_size > innerFile.size ? innerFile.compressed_size : 0;
+-        byte[] innerBytes = new byte[innerAvail];
+-        innerOnDisk.Read(0, innerBytes, 0, (int)innerAvail);
+-
+-        long napsSize = napsFile.size;
+-        byte[] napsBytes = new byte[napsSize];
+-        napsFile.GetView().Read(0, napsBytes, 0, (int)napsSize);
+-
+-        ProsperoPs5InnerMountResult mountResult;
+-        IReadOnlyList<ProsperoPs5InnerFileEntry> tree;
+-        try
+-        {
+-            mountResult = ProsperoPs5InnerImageReader.ReconstructMount(innerBytes, napsBytes, mountSize);
+-            tree = ProsperoPs5InnerImageReader.ReadFileTree(mountResult.Mount, mountResult.SuperblockOffset);
+-        }
+-        catch (Exception ex)
+-        {
+-            throw new ProsperoExtractionException(
+-                "Failed to decode the nwonly data-first inner image via naps_pkg_layout.dat. Packages whose " +
+-                "inner files are Kraken-compressed (rather than stored raw) use a naps CblockInfo sub-layout " +
+-                "that is not yet fully supported.", ex);
+-        }
++        using var inner = OpenNwonlyInner(innerOnDisk, innerFile, napsFile, cancellation);
++        var tree = ProsperoPs5InnerImageReader.ReadFileTree(inner, inner.Length, inner.FindSuperblock());
+@@ -679 +605 @@ public static class ProsperoPackageExtractor
+-        byte[] mount = mountResult.Mount;
++        var buffer = new byte[1024 * 1024];
+@@ -688 +614 @@ public static class ProsperoPackageExtractor
+-            if (off < 0 || off + f.Size > mount.Length)
++            if (off < 0 || off > inner.Length || f.Size < 0 || f.Size > inner.Length - off)
+@@ -693 +619,10 @@ public static class ProsperoPackageExtractor
+-                fs.Write(mount, (int)off, (int)f.Size);
++            {
++                long copied = 0;
++                while (copied < f.Size)
++                {
++                    int count = (int)Math.Min(buffer.Length, f.Size - copied);
++                    inner.Read(off + copied, buffer, 0, count);
++                    fs.Write(buffer, 0, count);
++                    copied += count;
++                }
++            }
+@@ -700,0 +636,12 @@ public static class ProsperoPackageExtractor
++    private static ProsperoInnerImageReader OpenNwonlyInner(IMemoryReader source, ProsperoPfsReader.File inner, ProsperoPfsReader.File naps, CancellationToken cancellation)
++    {
++        if (naps.size <= 0 || naps.size > 64 * 1024 * 1024)
++            throw new ProsperoExtractionException("The package layout exceeds the 64 MiB metadata limit.");
++        var layout = new byte[(int)naps.size];
++        using var layoutView = naps.GetView();
++        layoutView.Read(0, layout, 0, layout.Length);
++        try { return new ProsperoInnerImageReader(source, inner.size, layout, inner.compressed_size > inner.size ? inner.compressed_size : 0, cancellation); }
++        catch (Exception ex) when (ex is not OperationCanceledException)
++        { throw new ProsperoExtractionException("Cannot index the data-first inner filesystem: " + ex.Message, ex); }
++    }
++

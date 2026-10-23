@@ -1,0 +1,420 @@
+<Window x:Class="PS5CatalogBrowser.App.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:PS5CatalogBrowser.App" Title="OrbitX" Height="800" Width="1260" MinHeight="620" MinWidth="920" Background="#111827" Foreground="#E5E7EB" FontFamily="Segoe UI">
+  <Window.Icon><CroppedBitmap SourceRect="0,450,270,330"><CroppedBitmap.Source><BitmapImage UriSource="Assets/Branding/orbitx-logo.png"/></CroppedBitmap.Source></CroppedBitmap></Window.Icon>
+  <Window.Resources>
+    <ResourceDictionary>
+    <ResourceDictionary.MergedDictionaries><ResourceDictionary Source="SettingsStyles.xaml"/></ResourceDictionary.MergedDictionaries>
+    <Style x:Key="OrbitDetails" TargetType="StackPanel">
+      <Setter Property="Visibility" Value="Collapsed"/>
+      <Style.Triggers><DataTrigger Binding="{Binding DataContext.SelectedEntry.CatalogFormat, RelativeSource={RelativeSource AncestorType=Window}}" Value="Orbit"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
+    </Style>
+    <local:LaunchVisibilityConverter x:Key="LaunchVisibility"/>
+    <local:LibraryCaptionConverter x:Key="LibraryCaption"/>
+    <Style x:Key="BrowseTile" TargetType="ListBoxItem">
+      <Setter Property="Padding" Value="0"/><Setter Property="Margin" Value="0,0,8,8"/>
+      <Setter Property="AutomationProperties.Name" Value="{Binding Title}"/>
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem">
+        <Border x:Name="Tile" Background="Transparent" CornerRadius="10" BorderThickness="2" BorderBrush="Transparent" Padding="2"><ContentPresenter/></Border>
+        <ControlTemplate.Triggers>
+          <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Tile" Property="Background" Value="#192334"/></Trigger>
+          <Trigger Property="IsSelected" Value="True"><Setter TargetName="Tile" Property="BorderBrush" Value="#7DD3FC"/></Trigger>
+          <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="Tile" Property="BorderBrush" Value="#FBBF24"/></Trigger>
+        </ControlTemplate.Triggers>
+      </ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style x:Key="SourceRow" TargetType="ListBoxItem" BasedOn="{StaticResource BrowseTile}">
+      <Setter Property="Margin" Value="0"/>
+      <Setter Property="AutomationProperties.Name" Value="{Binding Name}"/>
+    </Style>
+    <Style TargetType="TextBlock"><Setter Property="Foreground" Value="#E5E7EB"/><Setter Property="TextWrapping" Value="Wrap"/></Style>
+    <Style TargetType="Button"><Setter Property="Background" Value="#334155"/><Setter Property="Foreground" Value="White"/><Setter Property="BorderBrush" Value="#475569"/><Setter Property="Padding" Value="12,6"/><Setter Property="Margin" Value="3"/></Style>
+    <Style TargetType="TextBox"><Setter Property="Background" Value="#0F172A"/><Setter Property="Foreground" Value="White"/><Setter Property="BorderBrush" Value="#475569"/><Setter Property="Padding" Value="7,5"/><Setter Property="Margin" Value="3"/></Style>
+    <Style TargetType="ComboBox">
+      <Setter Property="Background" Value="#1E293B"/><Setter Property="Foreground" Value="#F8FAFC"/>
+      <Setter Property="BorderBrush" Value="#64748B"/><Setter Property="Margin" Value="3"/>
+      <Setter Property="MinWidth" Value="95"/><Setter Property="MinHeight" Value="32"/>
+      <Setter Property="Template">
+        <Setter.Value><ControlTemplate TargetType="ComboBox">
+          <Grid>
+            <ToggleButton x:Name="DropDownToggle" Focusable="False" Foreground="{TemplateBinding Foreground}" BorderBrush="{TemplateBinding BorderBrush}"
+                          Content="{TemplateBinding SelectionBoxItem}"
+                          IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}">
+              <ToggleButton.Template><ControlTemplate TargetType="ToggleButton">
+                <Border x:Name="Chrome" Background="#1E293B" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="3" Padding="10,5">
+                  <DockPanel LastChildFill="True">
+                    <Path DockPanel.Dock="Right" Data="M 0 0 L 4 4 L 8 0" Stroke="#F8FAFC" StrokeThickness="1.6" Margin="12,0,1,0" VerticalAlignment="Center"/>
+                    <ContentPresenter Content="{TemplateBinding Content}" VerticalAlignment="Center"/>
+                  </DockPanel>
+                </Border>
+                <ControlTemplate.Triggers>
+                  <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Chrome" Property="Background" Value="#334155"/></Trigger>
+                  <Trigger Property="IsChecked" Value="True"><Setter TargetName="Chrome" Property="BorderBrush" Value="#7DD3FC"/></Trigger>
+                </ControlTemplate.Triggers>
+              </ControlTemplate></ToggleButton.Template>
+            </ToggleButton>
+            <Popup x:Name="PART_Popup" Placement="Bottom" PlacementTarget="{Binding ElementName=DropDownToggle}"
+                   IsOpen="{TemplateBinding IsDropDownOpen}" AllowsTransparency="True" StaysOpen="False"
+                   Width="{Binding ActualWidth, ElementName=DropDownToggle}">
+              <Border Background="#1E293B" BorderBrush="#7DD3FC" BorderThickness="1" MaxHeight="280">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><ItemsPresenter/></ScrollViewer>
+              </Border>
+            </Popup>
+          </Grid>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="DropDownToggle" Property="BorderBrush" Value="#7DD3FC"/></Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate></Setter.Value>
+      </Setter>
+    </Style>
+    <Style TargetType="ComboBoxItem">
+      <Setter Property="Foreground" Value="#F8FAFC"/><Setter Property="Background" Value="#1E293B"/>
+      <Setter Property="Padding" Value="9,6"/>
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ComboBoxItem">
+        <Border x:Name="ItemBorder" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+          <ContentPresenter/>
+        </Border>
+        <ControlTemplate.Triggers>
+          <Trigger Property="IsHighlighted" Value="True"><Setter TargetName="ItemBorder" Property="Background" Value="#334155"/></Trigger>
+          <Trigger Property="IsSelected" Value="True"><Setter TargetName="ItemBorder" Property="Background" Value="#315A75"/></Trigger>
+        </ControlTemplate.Triggers>
+      </ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style TargetType="ListBox"><Setter Property="Background" Value="#1F2937"/><Setter Property="Foreground" Value="White"/><Setter Property="BorderBrush" Value="#334155"/></Style>
+    <Style TargetType="TabItem">
+      <Setter Property="Foreground" Value="#CBD5E1"/><Setter Property="Background" Value="#1E293B"/>
+      <Setter Property="Padding" Value="16,14"/><Setter Property="MinWidth" Value="92"/>
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="TabItem">
+        <Border x:Name="TabBorder" Background="{TemplateBinding Background}" BorderBrush="#334155"
+                BorderThickness="0,0,0,1" Padding="{TemplateBinding Padding}">
+          <ContentPresenter ContentSource="Header" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+        </Border>
+        <ControlTemplate.Triggers>
+          <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="TabBorder" Property="Background" Value="#334155"/></Trigger>
+          <Trigger Property="IsSelected" Value="True">
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+            <Setter TargetName="TabBorder" Property="Background" Value="#315A75"/>
+            <Setter TargetName="TabBorder" Property="BorderBrush" Value="#7DD3FC"/>
+            <Setter TargetName="TabBorder" Property="BorderThickness" Value="3,0,0,0"/>
+          </Trigger>
+          <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="TabBorder" Property="BorderBrush" Value="#FBBF24"/><Setter TargetName="TabBorder" Property="BorderThickness" Value="3,1,1,1"/></Trigger>
+        </ControlTemplate.Triggers>
+      </ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style TargetType="ListBoxItem">
+      <Setter Property="Foreground" Value="#F8FAFC"/><Setter Property="Padding" Value="2"/>
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem">
+        <Border x:Name="ItemBorder" BorderBrush="Transparent" BorderThickness="2" Padding="{TemplateBinding Padding}">
+          <ContentPresenter/>
+        </Border>
+        <ControlTemplate.Triggers>
+          <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ItemBorder" Property="Background" Value="#2B3E55"/></Trigger>
+          <Trigger Property="IsSelected" Value="True"><Setter TargetName="ItemBorder" Property="BorderBrush" Value="#7DD3FC"/></Trigger>
+          <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="ItemBorder" Property="BorderBrush" Value="#FBBF24"/></Trigger>
+        </ControlTemplate.Triggers>
+      </ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style TargetType="GroupBox"><Setter Property="Foreground" Value="#93C5FD"/><Setter Property="Margin" Value="8"/><Setter Property="Padding" Value="10"/></Style>
+    <Style x:Key="BrowseFilter" TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
+      <Setter Property="MinWidth" Value="125"/><Setter Property="Height" Value="36"/>
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ComboBox">
+        <Grid>
+          <ToggleButton x:Name="Toggle" Foreground="#E4EBF5" Focusable="False" IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}">
+            <ToggleButton.Template><ControlTemplate TargetType="ToggleButton">
+              <Border x:Name="Pill" Background="#192334" CornerRadius="18" BorderThickness="1" BorderBrush="Transparent" Padding="14,6">
+                <DockPanel><Path DockPanel.Dock="Right" Data="M 0 0 L 3 3 L 6 0" Stroke="#BCC9DA" StrokeThickness="1.2" VerticalAlignment="Center" Margin="14,0,0,0"/>
+                  <ContentPresenter Content="{Binding SelectionBoxItem, RelativeSource={RelativeSource AncestorType=ComboBox}}" VerticalAlignment="Center"/>
+                </DockPanel>
+              </Border>
+              <ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Pill" Property="Background" Value="#27364C"/></Trigger></ControlTemplate.Triggers>
+            </ControlTemplate></ToggleButton.Template>
+          </ToggleButton>
+          <Border x:Name="FocusRing" IsHitTestVisible="False" CornerRadius="18" BorderBrush="Transparent" BorderThickness="2"/>
+          <Popup x:Name="PART_Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}" AllowsTransparency="True" StaysOpen="False" Width="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}">
+            <Border Background="#192334" BorderBrush="#526681" BorderThickness="1" CornerRadius="8" Padding="4" MaxHeight="280"><ScrollViewer><ItemsPresenter/></ScrollViewer></Border>
+          </Popup>
+        </Grid>
+        <ControlTemplate.Triggers><Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="FocusRing" Property="BorderBrush" Value="#7DD3FC"/></Trigger></ControlTemplate.Triggers>
+      </ControlTemplate></Setter.Value></Setter>
+    </Style>
+
+      </ResourceDictionary>
+  </Window.Resources>
+  <Grid x:Name="ApplicationLayout" Margin="12"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+    <Border x:Name="NativeChrome" ClipToBounds="True"><Grid x:Name="NativeToolbar" Margin="0,0,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><WrapPanel>
+      <StackPanel Orientation="Horizontal">
+        <TextBlock Text="Interface" VerticalAlignment="Center" Margin="4"/>
+        <ComboBox x:Name="InterfacePicker" ItemsSource="{Binding InterfaceChoices}" SelectedItem="{Binding Interface}" AutomationProperties.Name="Interface" MinWidth="155"/>
+        <Button x:Name="ReturnToOrbit" Content="Return to Orbit" Click="ReturnToOrbit_Click" Visibility="Collapsed"/>
+        <Button x:Name="OrbitAppearanceButton" Content="Appearance (F2)" Click="OrbitAppearance_Click" ToolTip="Choose Store, Crossbar, Cinema or Panorama"/>
+      </StackPanel>
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+        <Button x:Name="WindowsSettingsButton" Content="Windows Settings" Tag="Settings" Click="WindowsPage_Click"/>
+        <Button Content="Downloads" Tag="Downloads" Click="WindowsPage_Click"/>
+        <Button Content="My Library" Tag="My Library" Click="WindowsPage_Click"/>
+        <Button Content="Full screen (F11)" Click="Fullscreen_Click"/>
+      </StackPanel>
+    </WrapPanel><Button x:Name="CloseAppButton" Grid.Column="1" Content="Close" Click="CloseApp_Click" VerticalAlignment="Top" MinHeight="32" MinWidth="70" Margin="8,3,3,3" ToolTip="Close OrbitX" AutomationProperties.Name="Close OrbitX"/></Grid></Border>
+    <ContentControl x:Name="OrbitSurface" Grid.Row="1" Visibility="Collapsed"/>
+    <TabControl x:Name="ClassicTabs" Grid.Row="1" TabStripPlacement="Left" Background="#111827" BorderThickness="0">
+      <TabItem Header="Browse"><Grid Margin="12" Background="#080D19">
+        <Grid.Resources>
+          <Style TargetType="ScrollBar">
+            <Setter Property="Width" Value="10"/>
+            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ScrollBar">
+              <Track x:Name="PART_Track" Orientation="Vertical" IsDirectionReversed="True">
+                <Track.DecreaseRepeatButton><RepeatButton Command="ScrollBar.PageUpCommand" Focusable="False"><RepeatButton.Template><ControlTemplate TargetType="RepeatButton"><Border Background="Transparent"/></ControlTemplate></RepeatButton.Template></RepeatButton></Track.DecreaseRepeatButton>
+                <Track.Thumb><Thumb MinHeight="24"><Thumb.Template><ControlTemplate TargetType="Thumb"><Border Background="#43536B" CornerRadius="5" Margin="2,0"/></ControlTemplate></Thumb.Template></Thumb></Track.Thumb>
+                <Track.IncreaseRepeatButton><RepeatButton Command="ScrollBar.PageDownCommand" Focusable="False"><RepeatButton.Template><ControlTemplate TargetType="RepeatButton"><Border Background="Transparent"/></ControlTemplate></RepeatButton.Template></RepeatButton></Track.IncreaseRepeatButton>
+              </Track>
+            </ControlTemplate></Setter.Value></Setter>
+          </Style>
+        </Grid.Resources>
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+        <WrapPanel Margin="8,8,8,14">
+          <StackPanel><TextBlock Text="Search catalogue" Foreground="#BCC9DA" Margin="6,0,0,4" FontSize="11"/><TextBox Width="205" Height="36" Text="{Binding Search, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Search catalogue" ToolTip="Search title, description or title ID"/></StackPanel>
+          <StackPanel><TextBlock Text="Source" Foreground="#BCC9DA" Margin="12,0,0,4" FontSize="11"/><ComboBox Style="{StaticResource BrowseFilter}" ItemsSource="{Binding SourceChoices}" SelectedItem="{Binding SourceFilter}" AutomationProperties.Name="Source filter"/></StackPanel>
+          <StackPanel><TextBlock Text="Content type" Foreground="#BCC9DA" Margin="12,0,0,4" FontSize="11"/><ComboBox Style="{StaticResource BrowseFilter}" ItemsSource="{Binding KindChoices}" SelectedItem="{Binding KindFilter}" AutomationProperties.Name="Content type filter"/></StackPanel>
+          <StackPanel><TextBlock Text="Platform" Foreground="#BCC9DA" Margin="12,0,0,4" FontSize="11"/><ComboBox Style="{StaticResource BrowseFilter}" ItemsSource="{Binding PlatformChoices}" SelectedItem="{Binding PlatformFilter}" AutomationProperties.Name="Platform filter"/></StackPanel>
+          <StackPanel><TextBlock Text="Sort by" Foreground="#BCC9DA" Margin="12,0,0,4" FontSize="11"/><ComboBox Style="{StaticResource BrowseFilter}" ItemsSource="{Binding SortChoices}" SelectedItem="{Binding Sort}" AutomationProperties.Name="Sort catalogue"/></StackPanel>
+          <Button Content="Refresh" Click="RefreshAll_Click" VerticalAlignment="Bottom" Height="36" ToolTip="Refresh enabled catalogues"/>
+        </WrapPanel>
+        <Grid Grid.Row="1"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+          <ListBox x:Name="BrowseList" ItemsSource="{Binding BrowseView}" SelectedItem="{Binding SelectedEntry}" Background="Transparent" BorderThickness="0" Padding="4" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Auto" ItemContainerStyle="{StaticResource BrowseTile}" AutomationProperties.Name="Catalogue titles">
+            <ListBox.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ListBox.ItemsPanel>
+            <ListBox.ItemTemplate><DataTemplate><StackPanel Width="160">
+              <local:CoverThumbnail Url="{Binding ThumbnailUrl}" FallbackUrl="{Binding CoverFallbackUrl}" Width="160" Height="160" IsHitTestVisible="False"/>
+              <TextBlock Text="{Binding Title}" ToolTip="{Binding Title}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" FontSize="12" Foreground="#E4EBF5" Margin="0,8,0,0"/>
+              <TextBlock Foreground="#9DD7F7" FontSize="10" Margin="0,4,0,0"><TextBlock.Text><MultiBinding Converter="{StaticResource LibraryCaption}"><Binding Path="Id"/><Binding Path="DataContext.LibraryView" RelativeSource="{RelativeSource AncestorType=Window}"/></MultiBinding></TextBlock.Text></TextBlock>
+            </StackPanel></DataTemplate></ListBox.ItemTemplate>
+          </ListBox>
+          <ScrollViewer Grid.Column="1" Width="390" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Background="#111C2C">
+            <ScrollViewer.Style><Style TargetType="ScrollViewer"><Style.Triggers><DataTrigger Binding="{Binding SelectedEntry}" Value="{x:Null}"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></ScrollViewer.Style>
+            <StackPanel Margin="18" DataContext="{Binding SelectedEntry}">
+              <Button Content="Close details" Click="CloseDetails_Click" HorizontalAlignment="Right" Margin="0,0,0,12"/>
+              <local:CoverThumbnail Url="{Binding ThumbnailUrl}" FallbackUrl="{Binding CoverFallbackUrl}" Width="170" Height="170" Margin="0,0,0,12"/><TextBlock Text="{Binding Title}" FontSize="23" FontWeight="SemiBold"/><TextBlock Text="{Binding Description}" Margin="0,10,0,10"/><TextBlock Text="{Binding BrowseTitleId, StringFormat=Title ID: {0}}"/><TextBlock Text="{Binding BrowseVersion, StringFormat=Version: {0}}"/><TextBlock Text="{Binding Author, StringFormat=Author: {0}}"/><TextBlock Text="{Binding SourceName, StringFormat=Source: {0}}"/><TextBlock Text="{Binding Platform, StringFormat=Platform: {0}}"/><TextBlock Text="{Binding Kind, StringFormat=Type: {0}}"/><TextBlock Text="{Binding BrowseFormat, StringFormat=Format: {0}}"/><TextBlock Text="{Binding BrowseRegion, StringFormat=Region: {0}}"/><TextBlock Text="{Binding BrowseSizeLabel, StringFormat=Size: {0}}"/><TextBlock Text="{Binding Classification}" Foreground="#FBBF24" Margin="0,8,0,8"/><StackPanel Style="{StaticResource OrbitDetails}"><TextBlock Text="{Binding DataContext.OrbitBrowseSummary, RelativeSource={RelativeSource AncestorType=Window}}" TextWrapping="Wrap"/><TextBlock Text="{Binding Publisher, StringFormat=Publisher: {0}}"/><TextBlock Text="{Binding Genre, StringFormat=Genre: {0}}"/><TextBlock Text="{Binding Tagline}"/><TextBlock Text="{Binding ReleaseDate, StringFormat=Release date: {0}}"/></StackPanel>
+              <TextBlock Text="{Binding DownloadAvailability}" Foreground="#FBBF24"/>
+              <TextBlock Text="Files and release options" FontWeight="SemiBold"/>
+            <ListBox ItemsSource="{Binding DataContext.MirrorView, RelativeSource={RelativeSource AncestorType=Window}}" SelectedItem="{Binding DataContext.SelectedMirror, RelativeSource={RelativeSource AncestorType=Window}}" Height="280" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+              <ListBox.GroupStyle><GroupStyle><GroupStyle.HeaderTemplate><DataTemplate><TextBlock Text="{Binding Name}" ToolTip="{Binding Name}" TextWrapping="Wrap" FontWeight="SemiBold" Foreground="#7DD3FC" Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=ListBox}}" Padding="5,10,35,5"/></DataTemplate></GroupStyle.HeaderTemplate></GroupStyle></ListBox.GroupStyle>
+              <ListBox.ItemTemplate><DataTemplate><Grid Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=ListBox}}"><StackPanel Margin="5,0,35,5">
+                <TextBlock Text="{Binding Provider}" FontWeight="SemiBold"/>
+                <TextBlock Text="{Binding Group, StringFormat=Group: {0}}" TextWrapping="Wrap"/>
+                <TextBlock Text="{Binding Format, StringFormat=Format: {0}}"/><TextBlock Text="{Binding ContainerLabel, StringFormat=Container: {0}}"/>
+                <TextBlock Text="{Binding ExpectedFileLabel, StringFormat=Expected file: {0}}" TextWrapping="Wrap" ToolTip="{Binding ExpectedFileLabel}"/>
+                <TextBlock Text="{Binding SizeLabel}"/>
+                <TextBlock Text="{Binding Hostname, StringFormat=Host: {0}}" ToolTip="{Binding Url}" Foreground="#93C5FD"/>
+                <TextBlock Text="{Binding Availability}" Foreground="#FBBF24"/>
+                <WrapPanel><Button Content="Direct download" Tag="{Binding}" Click="MirrorDirect_Click" IsEnabled="{Binding DirectEnabled}"/><Button Content="Browser-assisted" Tag="{Binding}" Click="MirrorBrowser_Click" IsEnabled="{Binding BrowserEnabled}"/><Button Content="External browser" Tag="{Binding}" Click="MirrorExternal_Click"/><Button Content="Import completed file" Tag="{Binding}" Click="MirrorImport_Click"/></WrapPanel>
+              </StackPanel></Grid></DataTemplate></ListBox.ItemTemplate>
+            </ListBox>
+            <StackPanel Style="{StaticResource OrbitDetails}" DataContext="{Binding DataContext.SelectedArtifact, RelativeSource={RelativeSource AncestorType=Window}}" Margin="0,8">
+              <TextBlock Text="Selected release" FontWeight="SemiBold"/><TextBlock Text="{Binding Id, StringFormat=Release ID: {0}}"/>
+              <TextBlock Text="{Binding TitleId, StringFormat=Title ID: {0}}"/><TextBlock Text="{Binding Version, StringFormat=Version: {0}}"/>
+              <TextBlock Text="{Binding Region, StringFormat=Region: {0}}"/><TextBlock Text="{Binding Provider, StringFormat=Provider: {0}}"/>
+              <TextBlock Text="{Binding ProviderSourceId, StringFormat=Provider source: {0}}"/><TextBlock Text="{Binding FileName}"/>
+              <TextBlock Text="{Binding Size, StringFormat=Expected bytes: {0:N0}}"/><TextBlock Text="{Binding Format, StringFormat=Content format: {0}}"/>
+              <TextBlock Text="{Binding Compression, StringFormat=Archive compression: {0}}"/><TextBlock Text="{Binding ExtractedSizeLabel, StringFormat=Extracted size: {0}}"/>
+              <TextBlock Text="{Binding ArchiveContents, StringFormat=Archive contents: {0}}"/><TextBlock Text="{Binding Notes}"/>
+              <TextBlock Text="{Binding Url, StringFormat=Catalogue URL: {0}}"/><TextBlock Text="{Binding BrowserUrl, StringFormat=Browser URL: {0}}"/>
+              <TextBlock Text="{Binding SourceVerification, StringFormat=Source verification: {0}}"/>
+            </StackPanel>
+            <Button Content="Download all files (PS5 Library)" Click="DownloadAll_Click" IsEnabled="{Binding DownloadAllEnabled}"><Button.Style><Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}"><Style.Triggers><DataTrigger Binding="{Binding CatalogFormat}" Value="OptiStore"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Button.Style></Button>
+            <TextBlock Text="Select one source for each file. Browser downloads require confirmation and local inspection before a launch attempt." FontSize="12" Foreground="#CBD5E1"/>
+</StackPanel></ScrollViewer>
+        </Grid></Grid></TabItem>
+      <TabItem Header="Downloads"><Grid Margin="12">
+        <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+        <ListBox x:Name="DownloadList" ItemsSource="{Binding DownloadView}" SelectedItem="{Binding SelectedJob}" ScrollViewer.HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch" AutomationProperties.Name="Downloads">
+          <ListBox.ItemTemplate><DataTemplate><DockPanel Margin="8">
+            <local:CoverThumbnail Url="{Binding CoverUrl}" FallbackUrl="{Binding CoverFallbackUrl}" Width="72" Height="72" Margin="0,0,14,0" VerticalAlignment="Top"/>
+            <StackPanel><TextBlock Text="{Binding Title}" FontSize="16" FontWeight="SemiBold"/>
+              <TextBlock Text="{Binding FileName}" Foreground="#CBD5E1"/>
+              <TextBlock Text="{Binding State}" Foreground="#FBBF24"/>
+              <StackPanel Orientation="Horizontal"><TextBlock Text="{Binding DownloadedSizeLabel}"/><TextBlock Text=" / "/><TextBlock Text="{Binding TotalSizeLabel}"/><TextBlock Text="{Binding Percentage, StringFormat={}  ({0:F1}%)}"/></StackPanel>
+              <TextBlock Text="{Binding Error}" Foreground="#FCA5A5"/>
+              <TextBlock Text="{Binding ArchiveStatus}" Foreground="#FBBF24" FontWeight="SemiBold"/>
+            </StackPanel>
+          </DockPanel></DataTemplate></ListBox.ItemTemplate>
+        </ListBox>
+        <StackPanel Grid.Row="1" Margin="0,12,0,0">
+          <ItemsControl ItemsSource="{Binding BrowserDownloads.Sessions}"><ItemsControl.ItemTemplate><DataTemplate>
+            <WrapPanel><TextBlock Text="{Binding Title}" VerticalAlignment="Center" Margin="4"/><Button Content="Check status" Tag="{Binding Id}" Click="CheckDownloadStatus_Click"/></WrapPanel>
+          </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+          <TextBlock Text="{Binding DownloadExplanation}" Margin="4,0,4,8" AutomationProperties.LiveSetting="Polite"/>
+          <TextBlock Text="{Binding SelectedDownloadInstallationStatus}" Background="#263F50" Foreground="#BAE6FD" Padding="6" Margin="4,0,4,8" HorizontalAlignment="Left" AutomationProperties.LiveSetting="Polite">
+            <TextBlock.Style><Style TargetType="TextBlock"><Style.Triggers><DataTrigger Binding="{Binding SelectedDownloadInstallationStatus}" Value=""><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+          </TextBlock>
+          <TextBlock Text="{Binding ExtractionFeedback}" Foreground="#93C5FD" Margin="4,0,4,8" AutomationProperties.LiveSetting="Polite"/>
+          <ProgressBar Value="{Binding ExtractionPercentage, Mode=OneWay}" Maximum="100" Height="8" Margin="4,0,4,8" AutomationProperties.Name="Archive extraction progress">
+            <ProgressBar.Style><Style TargetType="ProgressBar"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding IsExtracting}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></ProgressBar.Style>
+          </ProgressBar>
+          <WrapPanel>
+            <Button x:Name="DownloadActionButton" Content="{Binding DownloadActionLabel}" Click="DownloadAction_Click" IsEnabled="{Binding CanRunDownloadAction}" MinWidth="145" Background="#315B73">
+              <Button.Style><Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding ShowDownloadAction}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></Button.Style>
+            </Button>
+            <Button Content="Open downloads folder" Click="OpenDownloadsFolder_Click"/>
+            <Button Content="{Binding ScanDownloadsLabel}" Click="ScanDownloads_Click" IsEnabled="{Binding CanScanDownloads}"/>
+            <Button Content="Delete failed download" Click="DeleteDownload_Click" IsEnabled="{Binding CanDeleteSelectedDownload}"/>
+          </WrapPanel>
+          <Expander Header="More actions" Margin="4,8,4,0" Foreground="#E5E7EB">
+            <StackPanel><TextBlock Text="{Binding SelectedJob.Source, StringFormat=Source: {0}}" Margin="4,8,4,0"/>
+              <TextBlock Text="{Binding SelectedJob.Destination, StringFormat=File: {0}}" Margin="4,0"/>
+              <TextBlock Text="{Binding SelectedJob.BytesPerSecond, StringFormat=Transfer speed: {0:N0} B/s}" Margin="4,0"/>
+            <WrapPanel Margin="0,8,0,0">
+              <Button Content="Pause" Click="Pause_Click" IsEnabled="{Binding SelectedJob.CanPause}"/>
+              <Button Content="Retry" Click="RetryFailed_Click" IsEnabled="{Binding CanRetrySelectedDownload}"/><Button Content="Resume" Click="Resume_Click" IsEnabled="{Binding SelectedJob.CanResume}"/>
+              <Button Content="Cancel download" Click="Cancel_Click"/><Button Content="Restart download" Click="Retry_Click"/>
+              <Button Content="Clear selected history" Click="ClearSelectedHistory_Click"/>
+              <Button Content="Clear completed history" Click="ClearDownloads_Click" ToolTip="Keep files and library entries; clear completed history only."/>
+              <Button Content="Discard incomplete download…" Click="DiscardDownload_Click"/>
+            </WrapPanel></StackPanel>
+          </Expander>
+        </StackPanel>
+      </Grid></TabItem>
+      <TabItem Header="My Library"><Grid Margin="12"><Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions><ListBox x:Name="LibraryList" ItemsSource="{Binding LibraryView}" SelectedItem="{Binding SelectedLibraryEntry}"><ListBox.ItemTemplate><DataTemplate><DockPanel Margin="8"><local:CoverThumbnail Url="{Binding CoverUrl}" FallbackUrl="{Binding CoverFallbackUrl}" Width="100" Height="100" Margin="0,0,14,0" VerticalAlignment="Top" MouseLeftButtonDown="CoverDown" MouseLeftButtonUp="CoverUp" MouseMove="CoverMove" MouseLeave="CoverCancelled" LostMouseCapture="CoverCancelled" TouchDown="CoverTouchDown" TouchMove="CoverTouchMove" TouchUp="CoverTouchUp" TouchLeave="CoverTouchCancelled" LostTouchCapture="CoverTouchCancelled" ToolTip="Click to launch; hold to choose emulator"/><StackPanel><TextBlock Text="{Binding Title}" FontSize="16" FontWeight="SemiBold"/><TextBlock Text="{Binding Source, StringFormat=Source: {0}}"/><TextBlock Text="{Binding Version, StringFormat=Version: {0}}"/><TextBlock Text="{Binding ContentPath}" Foreground="#93C5FD"/><ItemsControl ItemsSource="{Binding AdditionalPaths}"/><TextBlock Text="{Binding Integrity}"/><TextBlock Text="{Binding Extraction}"/><TextBlock Text="{Binding Classification}" Foreground="#FBBF24"/></StackPanel></DockPanel></DataTemplate></ListBox.ItemTemplate></ListBox><WrapPanel Grid.Row="1" HorizontalAlignment="Right"><TextBlock Text="{Binding InstallationAvailability}" MaxWidth="420" Margin="4"/><Button Content="Install from file" Click="InstallFile_Click" IsEnabled="{Binding CanInstallFromFile}"/><Button Content="{Binding LibraryInstallActionLabel}" Click="InstallLibrary_Click" IsEnabled="{Binding CanInstallLibrary}"/><Button Content="Installation details" Click="InstallationDetails_Click"/><Button Content="Add folder" Click="AddFolder_Click"/><Button Content="Add ELF" Click="AddElf_Click"/><Button Content="Open folder" Click="OpenFolder_Click"/><Button Content="Extract ZIP / RAR" Click="Extract_Click"/><Button Content="Reinspect" Click="Reinspect_Click"/><Button x:Name="DeleteLibraryButton" Content="Delete" Click="DeleteLibrary_Click" IsEnabled="{Binding CanDeleteLibraryEntry}" ToolTip="Delete the selected library entry and its local files after confirmation."/><Button Content="View log" Click="ViewLaunchLog_Click" IsEnabled="{Binding CanViewSelectedLaunchLog}"/><Button Content="Choose emulator" Click="ChooseGameEmulator_Click" IsEnabled="{Binding CanLaunchSelected}"/><Button x:Name="LaunchLibraryButton" Content="Launch attempt" Click="Launch_Click" IsEnabled="{Binding CanLaunchSelected}" Visibility="{Binding SelectedLibraryEntry, Converter={StaticResource LaunchVisibility}}"/></WrapPanel></Grid></TabItem>
+      <TabItem x:Name="InstallationsTab" Header="Installations"><Grid Margin="12">
+        <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+        <ListBox x:Name="InstallationList" ItemsSource="{Binding InstallationView}" SelectedItem="{Binding SelectedInstallation}">
+          <ListBox.ItemTemplate><DataTemplate><StackPanel Margin="8">
+            <TextBlock Text="{Binding Title}" FontSize="16" FontWeight="SemiBold"/>
+            <TextBlock Text="{Binding StateLabel}" Foreground="#FBBF24"/>
+            <TextBlock Text="{Binding SourcePath}"/><TextBlock Text="{Binding Destination}" Foreground="#93C5FD"/>
+            <TextBlock Text="{Binding CleanupResult}"/><TextBlock Text="{Binding Error}" Foreground="#FCA5A5"/>
+          </StackPanel></DataTemplate></ListBox.ItemTemplate>
+        </ListBox>
+        <StackPanel Grid.Row="1" Margin="0,12,0,0">
+          <TextBlock Text="{Binding InstallationProgressText}" AutomationProperties.LiveSetting="Polite"/>
+          <ProgressBar x:Name="InstallationProgressBar" Value="{Binding InstallationPercentage, Mode=OneWay}" Minimum="0" Maximum="100" Height="16" Margin="0,8" AutomationProperties.Name="Installation stage progress"/>
+          <WrapPanel HorizontalAlignment="Right">
+            <Button Content="View details" Click="InstallationDetails_Click"/>
+            <Button Content="{Binding SelectedInstallationActionLabel}" Click="RetryInstallation_Click" IsEnabled="{Binding CanRetrySelectedInstallation}"/>
+            <Button Content="Delete" Click="DeleteInstallation_Click" IsEnabled="{Binding CanDeleteSelectedInstallation}"/>
+            <Button Content="Cancel installation" Click="CancelInstallation_Click" IsEnabled="{Binding IsInstalling}"/>
+            <Button Content="Retry source cleanup" Click="RetryCleanup_Click" IsEnabled="{Binding SelectedInstallation.CanRetryCleanup}"/>
+            <Button x:Name="ClearInstallationsButton" Content="Clear all" Click="ClearInstallations_Click" IsEnabled="{Binding CanClearInstallations}" ToolTip="Clear finished and interrupted installation history. Image files, installed games, mounts and verification manifests are preserved."/>
+          </WrapPanel>
+        </StackPanel>
+      </Grid></TabItem>
+      <TabItem x:Name="ClassicSettingsTab" Header="Settings">
+      <Grid x:Name="SettingsWorkspace" TextElement.FontSize="16" SizeChanged="SettingsWorkspace_SizeChanged" KeyboardNavigation.TabNavigation="Cycle">
+        <Grid.Resources><Style TargetType="ScrollBar" BasedOn="{StaticResource SettingsScrollBar}"/></Grid.Resources>
+        <Grid.Background><ImageBrush ImageSource="Assets/Settings/racing-background.png" Stretch="UniformToFill" AlignmentY="Top"/></Grid.Background>
+        <Border IsHitTestVisible="False"><Border.Background><LinearGradientBrush StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#70000A15"/><GradientStop Color="#DD030D17" Offset="1"/></LinearGradientBrush></Border.Background></Border>
+        <Grid Margin="28,12,28,8">
+          <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+          <StackPanel Grid.Row="1" Margin="0,0,0,12">
+            <TextBlock x:Name="SettingsHeading" Text="settings" FontSize="86" FontWeight="Light" LineHeight="94" LineStackingStrategy="BlockLineHeight"/>
+            <DockPanel>
+              <StackPanel Orientation="Horizontal"><Button Content="settings" Click="SettingsHome_Click" Style="{StaticResource SettingsNavigationButton}" Padding="0,2" FontSize="17"/>
+                <TextBlock x:Name="SettingsBreadcrumb" Foreground="#00C4FF" VerticalAlignment="Center" FontSize="17" Margin="12,0,0,0"/>
+              </StackPanel>
+            </DockPanel>
+          </StackPanel>
+          <Grid Grid.Row="2">
+            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+            <ScrollViewer x:Name="SettingsTileScroll" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" SizeChanged="SettingsTiles_SizeChanged" ScrollChanged="SettingsTiles_ScrollChanged" Margin="0,0,-10,4">
+              <WrapPanel x:Name="SettingsTiles"/>
+            </ScrollViewer>
+            <TabControl x:Name="SettingsTabs" Grid.Row="1" Background="Transparent" BorderThickness="0" AutomationProperties.Name="Settings categories" SelectionChanged="SettingsCategory_SelectionChanged">
+              <TabControl.Resources>
+                <Style TargetType="Button" BasedOn="{StaticResource SettingsButton}"/>
+                <Style TargetType="ListBox"><Setter Property="Background" Value="#8005101D"/><Setter Property="Foreground" Value="White"/><Setter Property="BorderBrush" Value="#37516C"/></Style>
+                <Style TargetType="TextBox" BasedOn="{StaticResource SettingsTextBox}"/>
+                <Style TargetType="CheckBox" BasedOn="{StaticResource SettingsToggle}"/>
+                <Style TargetType="PasswordBox"><Setter Property="BorderBrush" Value="#496987"/><Style.Triggers><Trigger Property="IsKeyboardFocused" Value="True"><Setter Property="BorderBrush" Value="#FFE39B"/><Setter Property="BorderThickness" Value="2"/></Trigger></Style.Triggers></Style>
+                <Style TargetType="GroupBox" BasedOn="{StaticResource SettingsSection}"/>
+                <Style TargetType="Expander" BasedOn="{StaticResource SettingsExpander}"/>
+                <Style TargetType="TextBlock"><Setter Property="Foreground" Value="#C4D9EF"/><Setter Property="TextWrapping" Value="Wrap"/><Setter Property="Margin" Value="0,2,0,5"/></Style>
+              </TabControl.Resources>
+              <TabControl.Template><ControlTemplate TargetType="TabControl"><ContentPresenter x:Name="PART_SelectedContentHost" ContentSource="SelectedContent"/></ControlTemplate></TabControl.Template>
+<TabItem Header="Catalogue sources"><ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,0,8,0"><StackPanel><StackPanel x:Name="SourceEditorPanel"><GroupBox Header="Catalogue sources"><StackPanel><TextBlock Text="Manage the sources OrbitX uses to discover content." Margin="0,0,0,14"/>
+<Grid Margin="10,0,10,8"><Grid.ColumnDefinitions><ColumnDefinition Width="180"/><ColumnDefinition Width="*"/><ColumnDefinition Width="140"/></Grid.ColumnDefinitions><TextBlock Text="Source"/><TextBlock Grid.Column="1" Text="Location and connection" Margin="12,0"/><TextBlock Grid.Column="2" Text="Catalogue activity"/></Grid>
+<TextBlock Text="No catalogue sources. Add a connection below." Margin="8,8"><TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding Sources.Count}" Value="0"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></TextBlock.Style></TextBlock><ListBox x:Name="SourceList" HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ItemContainerStyle="{StaticResource SourceRow}" ItemsSource="{Binding Sources}" SelectedItem="{Binding SelectedSource}" SelectionChanged="Sources_SelectionChanged" MinHeight="100" MaxHeight="240" ScrollViewer.VerticalScrollBarVisibility="Visible" ScrollViewer.CanContentScroll="True"><ListBox.ItemTemplate><DataTemplate><Grid Margin="8,6"><Grid.ColumnDefinitions><ColumnDefinition Width="180"/><ColumnDefinition Width="*"/><ColumnDefinition Width="140"/></Grid.ColumnDefinitions>
+<StackPanel><TextBlock Text="{Binding Name}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" ToolTip="{Binding Name}" Foreground="White" FontWeight="SemiBold"/><TextBlock Text="{Binding SourceType}" FontSize="12"/><TextBlock Text="{Binding Enabled, StringFormat=Enabled: {0}}"/></StackPanel>
+<StackPanel Grid.Column="1" Margin="12,0"><TextBlock Text="{Binding Url}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" ToolTip="{Binding Url}"/><TextBlock Text="{Binding EncryptedFilePath}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" ToolTip="{Binding EncryptedFilePath}"/><TextBlock Text="{Binding KeyFilePath, StringFormat=Key file: {0}}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" ToolTip="{Binding KeyFilePath}" FontSize="12"/><TextBlock Text="{Binding LastError}" Foreground="#FCA5A5"/></StackPanel>
+<StackPanel Grid.Column="2"><TextBlock Text="{Binding Format}"/><TextBlock Text="{Binding GameCount, StringFormat=Games: {0}}"/><TextBlock Text="{Binding ReleaseCount, StringFormat=Releases: {0}}"/><TextBlock Text="{Binding LastSuccessfulRefresh, StringFormat=Refreshed: {0}}" FontSize="12"/></StackPanel>
+</Grid></DataTemplate></ListBox.ItemTemplate></ListBox></StackPanel></GroupBox><GroupBox Header="Source connection"><StackPanel><TextBlock Text="Friendly name"/><TextBox x:Name="SourceNameBox" AutomationProperties.Name="Friendly name"/><TextBlock Text="Source type"/><ComboBox x:Name="SourceTypeBox" AutomationProperties.Name="Source type" SelectedIndex="0" SelectionChanged="SourceType_SelectionChanged"><ComboBoxItem Content="HTTP — JSON catalogue"/><ComboBoxItem Content="Orbit Store — Local encrypted catalogue"/><ComboBoxItem Content="Orbit Store — Live Catalogue"/></ComboBox>
+<StackPanel x:Name="HttpSourcePanel"><TextBlock Text="Catalogue HTTPS URL"/><TextBox x:Name="SourceUrlBox" AutomationProperties.Name="Catalogue HTTPS URL"/></StackPanel>
+<StackPanel x:Name="OrbitSourcePanel" Visibility="Collapsed"><StackPanel x:Name="LocalOrbitFilePanel"><TextBlock Text="Local encrypted catalogue (.enc)"/><TextBox x:Name="SourceFileBox" AutomationProperties.Name="Local encrypted catalogue file"/><Button Content="Choose catalogue file" Click="ChooseSourceFile_Click" HorizontalAlignment="Left"/></StackPanel><TextBlock Text="Available decoding keys"/><ComboBox x:Name="SourceManagedKeyBox" AutomationProperties.Name="Available decoding keys" ItemsSource="{Binding ManagedOrbitKeys}" DisplayMemberPath="Description" SelectedValuePath="FilePath" SelectionChanged="SourceManagedKey_SelectionChanged"/><Button x:Name="DownloadSourceKeyButton" Content="Download official Orbit key" Click="DownloadSourceKey_Click" HorizontalAlignment="Left"/><TextBlock Text="Retrieves the official source bundle (up to 512 MiB), verifies it, keeps only the key, and removes the temporary archive." TextWrapping="Wrap" Margin="4"/><TextBlock Text="Key file (managed or manually supplied)"/><TextBox x:Name="SourceKeyBox" AutomationProperties.Name="Key file"/><Button Content="Import key file" Click="ChooseSourceKey_Click" HorizontalAlignment="Left"/></StackPanel><StackPanel x:Name="LiveOrbitPanel" Visibility="Collapsed"><TextBlock Text="Local fallback for this same feed (optional)"/><ComboBox x:Name="SourceFallbackBox" AutomationProperties.Name="Local fallback source" ItemsSource="{Binding LocalOrbitFallbackChoices}" DisplayMemberPath="Name" SelectedValuePath="Id" SelectedValue=""/><CheckBox x:Name="SourceAutoRefreshBox" Content="Refresh automatically on startup and every six hours" Foreground="White" IsChecked="True" Margin="4"/><TextBlock Text="Adding an enabled source or editing its connection settings downloads the published Orbit key if none is selected. Changing only Enabled saves the setting; Browse applies it when opened. Use catalogue material only where permitted by the applicable terms. No offline live catalogue is saved." TextWrapping="Wrap" Margin="4"/></StackPanel><CheckBox x:Name="SourceEnabledBox" Content="Enabled" Foreground="White" IsChecked="True" Margin="4"/><WrapPanel><Button x:Name="AddSourceButton" Style="{StaticResource SettingsPrimaryButton}" Content="Add" Click="AddSource_Click"/><Button x:Name="SaveSourceButton" Content="Save selected" Click="SaveSource_Click"/><Button Content="Remove selected" Click="RemoveSource_Click"/><Button Content="Test Connection" Click="TestSource_Click"/><Button Content="Refresh Now" Click="RefreshSource_Click"/></WrapPanel></StackPanel></GroupBox></StackPanel><Button x:Name="CancelSourceKeyButton" Content="Cancel key download" Click="CancelSourceKey_Click" IsEnabled="{Binding IsFetchingOrbitKey}" HorizontalAlignment="Left"/></StackPanel></ScrollViewer></TabItem>
+<TabItem Header="Downloads"><ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,0,8,0"><StackPanel><GroupBox Header="Download defaults"><StackPanel><TextBlock Text="Configure where content is downloaded before installation." Margin="0,0,0,14"/><TextBlock Text="Downloads directory"/><DockPanel LastChildFill="True"><Button Content="Choose folder" Click="ChooseDownloadRoot_Click" DockPanel.Dock="Right"/><TextBox x:Name="DownloadRootBox" Text="{Binding DownloadRoot, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Downloads directory"/></DockPanel><Label Content="Download bandwidth limit (MB/s)" Target="{Binding ElementName=DownloadBandwidthBox}" Foreground="White"/><TextBox x:Name="DownloadBandwidthBox" Width="160" Text="{Binding DownloadBandwidthMBps, UpdateSourceTrigger=LostFocus, ValidatesOnExceptions=True}" AutomationProperties.Name="Download bandwidth limit in MB per second" MaxWidth="180" HorizontalAlignment="Left"/><TextBlock Text="Shared cap for HTTP and embedded provider downloads, with one managed network transfer at a time. Default: 100 MB/s (1 MB = 1,000,000 bytes); 0 means unlimited. Changes apply to the next transfer. A provider window reserves the slot until its download finishes or the window closes; paused provider downloads keep their slot. External system-browser transfers and local imports are outside this limit."/></StackPanel></GroupBox></StackPanel></ScrollViewer></TabItem>
+<TabItem Header="Archive passwords"><ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,0,8,0"><StackPanel><GroupBox Header="Archive passwords"><StackPanel><TextBlock Text="Manage saved passwords used when extracting protected archives." Margin="0,0,0,14"/><Label Content="Passwords to try (in order)" Target="{Binding ElementName=ArchivePasswordsBox}" Foreground="White"/><local:MaskedPasswordList x:Name="ArchivePasswordsBox" Text="{Binding ArchivePasswordsText, UpdateSourceTrigger=LostFocus, ValidatesOnExceptions=True}" AutomationProperties.Name="Archive passwords, ordered masked list"/>
+<TextBlock Text="{Binding ElementName=ArchivePasswordsBox, Path=(Validation.Errors)[0].ErrorContent}" Foreground="#FCA5A5" AutomationProperties.LiveSetting="Assertive"><TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding ElementName=ArchivePasswordsBox, Path=(Validation.HasError)}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></TextBlock.Style></TextBlock><TextBlock Text="Tried once each, from top to bottom, after any password supplied by the selected release. Passwords are case-sensitive; spaces are preserved. Up to 64 passwords, 1024 characters each. Add, edit or remove a password, then leave its field to save. Stored locally in app settings. Retry Extract and install on an existing download to use the updated list."/></StackPanel></GroupBox></StackPanel></ScrollViewer></TabItem>
+<TabItem Header="Embedded browser"><ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,0,8,0"><StackPanel><GroupBox Header="Embedded browser"><StackPanel><TextBlock Text="Manage the dedicated browser profile and saved site sessions." Margin="0,0,0,14"/><TextBlock Text="A dedicated browser profile stores site sessions under LocalAppData."/><Button Content="Clear browser site data" Click="ClearBrowserData_Click" HorizontalAlignment="Left"/></StackPanel></GroupBox></StackPanel></ScrollViewer></TabItem>
+<TabItem Header="Image installation"><ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,0,8,0"><StackPanel><GroupBox Header="Image installation"><StackPanel><TextBlock Text="Configure image mounting and the installed games directory." Margin="0,0,0,14"/>
+  <Label Content="OSFMount executable path" Target="{Binding ElementName=OSFMountPathBox}" Foreground="White"/>
+  <TextBox x:Name="OSFMountPathBox" Text="{Binding OSFMountPath, UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="OSFMount executable path"/>
+  <Border Style="{StaticResource SettingsStatusBadge}"><DockPanel><TextBlock DockPanel.Dock="Left" Text="ⓘ" Foreground="#80D5FF" Margin="0,0,8,0" IsHitTestVisible="False"/><TextBlock Text="{Binding InstallationAvailability}" AutomationProperties.LiveSetting="Polite"/></DockPanel></Border>
+  <WrapPanel><Button Content="Choose executable" Click="ChooseOSFMount_Click"/><Button Content="Detect installation" Click="DetectOSFMount_Click"/><Button Content="Test availability" Click="TestOSFMount_Click"/><Button Content="Get OSFMount" Click="InstallOSFMount_Click"/></WrapPanel>
+  <TextBlock Text="Install OSFMount 3.3.1000 or later under Program Files and restart Windows if requested. Choose OSFMount.com. Install its driver yourself; the browser requests temporary elevation only for each read-only mount session. Test availability after selecting the executable."/>
+  <Label Content="Installed games directory" Target="{Binding ElementName=InstalledRootBox}" Foreground="White"/>
+  <DockPanel LastChildFill="True"><Button Content="Choose installed games folder" Click="ChooseInstalledRoot_Click" DockPanel.Dock="Right"/><TextBox x:Name="InstalledRootBox" Text="{Binding InstalledGamesRoot, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Installed games directory"/></DockPanel><TextBlock Text="Choose this directory separately from Downloads. Changing Downloads does not change this path."/>
+  <CheckBox Content="Retain source archives/images after installation" IsChecked="{Binding RetainOriginalImage}" Foreground="White" Margin="4,10"/>
+  <TextBlock Text="Each installation asks you to confirm the folder and deletion option. Install accepts complete PS4/PS5 debug or fake PKGs and exFAT images. exFAT requires OSFMount. Active or incomplete downloads cannot be installed. Launch compatibility is determined by KytyPS5."/>
+</StackPanel></GroupBox></StackPanel></ScrollViewer></TabItem>
+<TabItem Header="SharpEmu"><ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,0,8,0"><StackPanel><GroupBox Header="SharpEmu executable"><StackPanel><TextBlock Text="Select the SharpEmu executable used by OrbitX." Margin="0,0,0,14"/>
+<TextBlock Text="Executable path"/><DockPanel><Button Content="Choose SharpEmu executable" Click="ChooseSharpEmu_Click" IsEnabled="{Binding CanManageSharpEmu}" DockPanel.Dock="Right"/><TextBox x:Name="SharpEmuPathBox" Text="{Binding SharpEmuPath, UpdateSourceTrigger=LostFocus, ValidatesOnExceptions=True}" IsEnabled="{Binding CanManageSharpEmu}" AutomationProperties.Name="SharpEmu executable path"/></DockPanel><WrapPanel Margin="0,4,0,6">
+<Border Style="{StaticResource SettingsStatusBadge}"><DockPanel><TextBlock DockPanel.Dock="Left" Text="ⓘ" Foreground="#80D5FF" Margin="0,0,8,0" IsHitTestVisible="False"/><TextBlock Text="{Binding SharpEmuAvailability}" TextWrapping="Wrap"/></DockPanel></Border><Border Style="{StaticResource SettingsStatusBadge}"><DockPanel><TextBlock DockPanel.Dock="Left" Text="ⓘ" Foreground="#80D5FF" Margin="0,0,8,0" IsHitTestVisible="False"/><TextBlock Text="{Binding SharpEmuOwnership}" TextWrapping="Wrap"/></DockPanel></Border>
+<CheckBox Content="Start full screen" IsChecked="{Binding SharpEmuFullscreen}" Foreground="White" Margin="8,0"/></WrapPanel>
+</StackPanel></GroupBox><GroupBox Header="Managed build and updates"><StackPanel>
+<Grid x:Name="SharpFacts" Margin="0,0,0,10"><Grid Margin="0,2,18,4"><Grid.ColumnDefinitions><ColumnDefinition Width="200"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><TextBlock Text="Installed version" FontWeight="Normal" Foreground="#AFD6FF"/><TextBlock Grid.Column="1" Text="{Binding SharpEmuInstalledVersion}" TextWrapping="Wrap"/></Grid><Grid Margin="0,2,18,4"><Grid.ColumnDefinitions><ColumnDefinition Width="200"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><TextBlock Text="Upstream commit" FontWeight="Normal" Foreground="#AFD6FF"/><TextBlock Grid.Column="1" Text="{Binding SharpEmuRevisionLabel}" ToolTip="{Binding SharpEmuInstalledRevision}"/></Grid><Grid Margin="0,2,18,4"><Grid.ColumnDefinitions><ColumnDefinition Width="200"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><TextBlock Text="Latest checked upstream main" FontWeight="Normal" Foreground="#AFD6FF"/><TextBlock Grid.Column="1" Text="{Binding SharpEmuAvailableRevision}" TextWrapping="Wrap"/></Grid><Grid Margin="0,2,18,4"><Grid.ColumnDefinitions><ColumnDefinition Width="200"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><TextBlock Text="Installation directory" FontWeight="Normal" Foreground="#AFD6FF"/><TextBlock Grid.Column="1" Text="{Binding SharpEmuInstallDirectory}" TextWrapping="Wrap"/></Grid><Grid Margin="0,2,18,4"><Grid.ColumnDefinitions><ColumnDefinition Width="200"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><TextBlock Text="Last successful check" FontWeight="Normal" Foreground="#AFD6FF"/><TextBlock Grid.Column="1" Text="{Binding SharpEmuCheckTime}"/></Grid><Grid Margin="0,2,18,4"><Grid.ColumnDefinitions><ColumnDefinition Width="200"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><TextBlock Text="Last successful update" FontWeight="Normal" Foreground="#AFD6FF"/><TextBlock Grid.Column="1" Text="{Binding SharpEmuUpdateTime}"/></Grid><Grid Margin="0,2,18,4"><Grid.ColumnDefinitions><ColumnDefinition Width="200"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><TextBlock Text="F10 menu support" FontWeight="Normal" Foreground="#AFD6FF"/><TextBlock Grid.Column="1" Text="{Binding SharpEmuF10Support}"/></Grid></Grid><WrapPanel><Button x:Name="CheckSharpEmuButton" Style="{StaticResource SettingsPrimaryButton}" Content="Check for updates" Click="CheckSharpEmu_Click" IsEnabled="{Binding CanManageSharpEmu}"/>
+<Button x:Name="UpdateSharpEmuButton" Content="Update/build managed SharpEmu" Click="UpdateSharpEmu_Click" IsEnabled="{Binding CanBuildSharpEmu}"/><Button Content="Open build log" Click="SharpEmuLog_Click"/></WrapPanel>
+<TextBlock Text="Check first to select the latest official main revision. Close games before updating. External executable selections are preserved." TextWrapping="Wrap"/>
+<TextBlock Text="{Binding SharpEmuUpdateStatus}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
+<Expander x:Name="SharpBuildOutput" Header="Build output" Foreground="#E5E7EB"><TextBox Text="{Binding SharpEmuUpdateOutput, Mode=OneWay}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" MinHeight="80" MaxHeight="240" AutomationProperties.Name="SharpEmu build output"/></Expander>
+</StackPanel></GroupBox></StackPanel></ScrollViewer></TabItem>
+<TabItem Header="KytyPS5"><ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,0,8,0"><StackPanel><GroupBox Header="KytyPS5 executable"><StackPanel><TextBlock Text="Select the KytyPS5 executable used by OrbitX." Margin="0,0,0,14"/><StackPanel IsEnabled="{Binding CanEditKytyPath}"><TextBlock Text="kyty_emulator.exe"/><TextBox x:Name="KytyPathBox" Text="{Binding EmulatorPath, UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="KytyPS5 executable path"/><Border Style="{StaticResource SettingsStatusBadge}"><DockPanel><TextBlock DockPanel.Dock="Left" Text="ⓘ" Foreground="#80D5FF" Margin="0,0,8,0" IsHitTestVisible="False"/><TextBlock Text="{Binding EmulatorAvailability}"/></DockPanel></Border><WrapPanel><Button Content="Choose executable" Click="ChooseEmulator_Click"/><Button Content="Test availability" Click="TestEmulator_Click"/></WrapPanel></StackPanel>
+</StackPanel></GroupBox><GroupBox Header="Build and updates"><StackPanel>
+<Grid Margin="0,0,0,6"><Grid.ColumnDefinitions><ColumnDefinition Width="200"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions><TextBlock Text="Current installed version" FontWeight="SemiBold"/><TextBlock Grid.Column="1" x:Name="InstalledKytyVersionText" Text="{Binding InstalledKytyVersion}" Margin="0,2,0,10"/>
+<TextBlock Grid.Row="1" Text="Repo version (latest official release)" FontWeight="SemiBold"/><TextBlock Grid.Row="1" Grid.Column="1" x:Name="RepositoryKytyVersionText" Text="{Binding RepositoryKytyVersion}" Margin="0,2,0,10"/>
+</Grid><WrapPanel><Button x:Name="CheckKytyVersionButton" Content="Check for updates" Click="CheckKytyVersion_Click" IsEnabled="{Binding CanCheckKytyVersion}"/><Button x:Name="UpdateKytyButton" Content="Update KytyPS5" Click="UpdateKyty_Click" IsEnabled="{Binding CanUpdateKyty}"/></WrapPanel>
+<TextBlock x:Name="KytyUpdateStatusText" Text="{Binding KytyUpdateStatus}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
+<TextBlock Text="Update downloads the latest release source, applies the custom menu patch, compiles Release and verifies the installed build. A configured Windows build and Visual Studio C++ tools are required. Close KytyPS5 first." TextWrapping="Wrap" Margin="0,8,0,0"/>
+<Expander x:Name="KytyUpdateOutput" Header="Update output" Foreground="#E5E7EB"><TextBox Text="{Binding KytyUpdateOutput, Mode=OneWay}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" MinHeight="80" MaxHeight="240" AutomationProperties.Name="KytyPS5 update output"/></Expander>
+</StackPanel></GroupBox><GroupBox Header="Arguments"><StackPanel>
+<TextBlock Text="Configure KytyPS5 options, then Apply arguments to save. Existing configurations keep emulator defaults until enabled." TextWrapping="Wrap"/>
+<CheckBox Content="Start full screen" IsChecked="{Binding ArgumentFullscreen}" Foreground="White" Margin="4"/>
+<CheckBox Content="Use structured performance settings" IsChecked="{Binding PerformanceArgumentsEnabled}" Foreground="White" Margin="4"/>
+<WrapPanel IsEnabled="{Binding PerformanceArgumentsEnabled}">
+<StackPanel Width="150"><Label Content="Screen width" Target="{Binding ElementName=ArgumentWidthBox}" Foreground="White"/><TextBox x:Name="ArgumentWidthBox" Text="{Binding ArgumentWidth, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Screen width"/></StackPanel>
+<StackPanel Width="150"><Label Content="Screen height" Target="{Binding ElementName=ArgumentHeightBox}" Foreground="White"/><TextBox x:Name="ArgumentHeightBox" Text="{Binding ArgumentHeight, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Screen height"/></StackPanel>
+<StackPanel Width="150"><Label Content="Vblank frequency" Target="{Binding ElementName=ArgumentVblankBox}" Foreground="White"/><TextBox x:Name="ArgumentVblankBox" Text="{Binding ArgumentVblank, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Vblank frequency"/></StackPanel>
+<StackPanel Width="150"><Label Content="Present mode" Target="{Binding ElementName=ArgumentPresentBox}" Foreground="White"/><ComboBox x:Name="ArgumentPresentBox" ItemsSource="{Binding PresentModeChoices}" SelectedItem="{Binding ArgumentPresentMode}" AutomationProperties.Name="Present mode"/></StackPanel>
+<StackPanel Width="175"><Label Content="Shader optimisation" Target="{Binding ElementName=ArgumentShaderBox}" Foreground="White"/><ComboBox x:Name="ArgumentShaderBox" ItemsSource="{Binding ShaderOptimizationChoices}" SelectedItem="{Binding ArgumentShaderOptimization}" AutomationProperties.Name="Shader optimisation"/></StackPanel>
+<CheckBox Content="Performance overlay" IsChecked="{Binding ArgumentPerformanceOverlay}" VerticalAlignment="Center" Foreground="White" Margin="8"/>
+</WrapPanel>
+<TextBlock Text="Vblank is a virtual display frequency; 30 does not guarantee a 30 FPS cap. Options require support from the selected KytyPS5 build. Review View log if it rejects an option." TextWrapping="Wrap"/>
+<GroupBox Header="CPU compatibility and shader cache"><StackPanel>
+<WrapPanel><CheckBox Content="AMD CPU instruction patches" IsChecked="{Binding ArgumentAmdCpuPatches}" Foreground="White" Margin="4,8"/><CheckBox Content="Red Zone protection (Windows)" IsChecked="{Binding ArgumentRedZoneProtection}" Foreground="White" Margin="12,8"/></WrapPanel>
+<TextBlock Text="These are optional compatibility settings, not guaranteed crash fixes. This build has no Intel-specific CPU or GPU vendor patch switch."/>
+<Label Content="Pipeline shader cache folder" Target="{Binding ElementName=ShaderCacheFolderBox}" Foreground="White"/>
+<TextBox x:Name="ShaderCacheFolderBox" Text="{Binding ArgumentShaderCacheFolder, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Pipeline shader cache folder"/>
+<Button Content="Choose cache folder" Click="ChooseShaderCacheFolder_Click" HorizontalAlignment="Left"/>
+<TextBlock Text="Leave empty to use _PipelineCache beside kyty_emulator.exe. The cache is generated during gameplay and reused on later runs; this build has no standalone shader pre-compilation step. A custom folder requires the maintained patched KytyPS5 build. Existing caches are never moved or deleted by this setting. GPU-driver caches and shader debug logs are separate."/>
+</StackPanel></GroupBox>
+<Label Content="Additional Arguments" Target="{Binding ElementName=AdditionalArgumentsBox}" Foreground="White"/>
+<TextBox x:Name="AdditionalArgumentsBox" Text="{Binding AdditionalArguments, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Additional Arguments"/>
+<TextBlock Text="Quote paths containing spaces with double quotes. The game path is supplied automatically. Managed flags cannot also appear here while structured settings are enabled." TextWrapping="Wrap"/>
+<Label Content="Effective options preview" Target="{Binding ElementName=ArgumentsPreviewBox}" Foreground="White"/>
+<TextBox x:Name="ArgumentsPreviewBox" Text="{Binding ArgumentsPreview, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" AutomationProperties.Name="Effective options preview"/>
+<TextBlock Text="{Binding ArgumentsValidation}" Foreground="#FCA5A5" TextWrapping="Wrap" AutomationProperties.LiveSetting="Assertive"/>
+<TextBlock Text="{Binding ArgumentsSaveState}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
+<Button x:Name="ApplyArgumentsButton" Style="{StaticResource SettingsPrimaryButton}" Content="Apply arguments" Click="ApplyArguments_Click" HorizontalAlignment="Left"/>
+</StackPanel></GroupBox></StackPanel></ScrollViewer></TabItem>
+<TabItem Header="About OrbitX"><ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,0,8,0"><StackPanel MaxWidth="720" HorizontalAlignment="Left"><GroupBox Header="About OrbitX"><StackPanel>
+  <Viewbox Width="320" HorizontalAlignment="Left" Margin="0,0,0,20" AutomationProperties.Name="OrbitX"><Canvas Width="1254" Height="345" ClipToBounds="True"><Image Source="Assets/Branding/orbitx-logo.png" Width="1254" Height="1254" Canvas.Top="-440"/></Canvas></Viewbox>
+  <TextBlock Text="A Windows game library and PS5 emulator frontend." TextWrapping="Wrap" Margin="0,0,0,20"/>
+  <TextBlock Text="Based on the original Orbit Store frontend for PS5 by saawant12." TextWrapping="Wrap" Margin="0,0,0,14"/>
+  <TextBlock TextWrapping="Wrap" Margin="0,0,0,14"><Hyperlink NavigateUri="https://github.com/saawant12/orbit-store-ps5" RequestNavigate="AboutRepository_RequestNavigate" Foreground="#71CDFF">Original Orbit repository on GitHub</Hyperlink></TextBlock>
+  <TextBlock TextWrapping="Wrap" Margin="0,0,0,14"><Hyperlink NavigateUri="https://github.com/revvinsuno-sys/OrbitX" RequestNavigate="AboutRepository_RequestNavigate" Foreground="#71CDFF">OrbitX corresponding source and build instructions</Hyperlink></TextBlock>
+  <TextBlock Text="Copyright (C) 2026 OrbitX contributors. GNU GPL version 3. You may redistribute and modify this application under that licence. No warranty is provided. Third-party components retain their own terms." TextWrapping="Wrap" Margin="0,0,0,14"/>
+  <TextBlock TextWrapping="Wrap" Margin="0,0,0,20"><Hyperlink NavigateUri="https://github.com/revvinsuno-sys/OrbitX/blob/main/LICENSE" RequestNavigate="AboutRepository_RequestNavigate" Foreground="#71CDFF">View licence</Hyperlink><Run Text=" — LICENSE, NOTICE.md and THIRD-PARTY-NOTICES.md are also included in the application folder."/></TextBlock>
+  <TextBlock Text="Current build version" FontWeight="SemiBold"/><TextBlock Text="{Binding AboutBuildVersion}" Margin="0,2,0,14"/>
+  <TextBlock Text="Last updated (local build time)" FontWeight="SemiBold"/><TextBlock Text="{Binding AboutLastUpdated}" Margin="0,2,0,14"/>
+</StackPanel></GroupBox></StackPanel></ScrollViewer></TabItem></TabControl>
+          </Grid>
+        </Grid>
+      </Grid>
+      </TabItem>
+    </TabControl><Border x:Name="NativeStatus" Grid.Row="2" Background="#1E293B" Padding="10" Margin="0,8,0,0"><TextBlock Text="{Binding Status}"/></Border>
+    <Border x:Name="NativeDownloadToast" Grid.Row="1" Panel.ZIndex="20" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="20" Padding="16" MaxWidth="440" Background="#1E293B" BorderBrush="#83B8FF" BorderThickness="1" CornerRadius="12" Visibility="Collapsed" IsHitTestVisible="False"><TextBlock x:Name="NativeDownloadToastText" AutomationProperties.LiveSetting="Polite"/></Border>
+  </Grid>
+</Window>

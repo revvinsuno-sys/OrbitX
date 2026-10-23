@@ -1,0 +1,5 @@
+{
+  "extends": "../orbit-upstream/tsconfig.json",
+  "compilerOptions": { "baseUrl": "..", "paths": { "react": ["orbit-upstream/node_modules/@types/react"], "react/*": ["orbit-upstream/node_modules/@types/react/*"], "react-dom": ["orbit-upstream/node_modules/@types/react-dom"], "react-dom/*": ["orbit-upstream/node_modules/@types/react-dom/*"] } },
+  "include": ["*.ts", "*.tsx", "../orbit-upstream/src", "../orbit-upstream/i18n"]
+}

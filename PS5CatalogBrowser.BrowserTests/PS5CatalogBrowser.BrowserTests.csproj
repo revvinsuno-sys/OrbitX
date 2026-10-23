@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup><ProjectReference Include="..\PS5CatalogBrowser.App\PS5CatalogBrowser.App.csproj" /></ItemGroup>
+  <ItemGroup><Content Include="../integrations/kytyps5/*.ps1;../integrations/kytyps5/*.patch" Link="KytyUpdate/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" /></ItemGroup>
+  <ItemGroup><Compile Include="..\PS5CatalogBrowser.Tests\LocalOrbitCatalogTests.cs" Link="LocalOrbitCatalogTests.cs" /></ItemGroup>
+  <ItemGroup><Compile Include="..\PS5CatalogBrowser.Tests\RangeFixtureServer.cs" Link="RangeFixtureServer.cs" /></ItemGroup>
+  <ItemGroup><Compile Include="..\PS5CatalogBrowser.Tests\SyntheticExFat.cs" Link="SyntheticExFat.cs" /></ItemGroup>
+  <ItemGroup><Compile Include="..\PS5CatalogBrowser.Tests\PackageArchiveTests.cs" Link="PackageArchiveTests.cs" /></ItemGroup>
+  <ItemGroup><Compile Include="..\PS5CatalogBrowser.Tests\LiveOrbitCatalogTests.cs" Link="LiveOrbitCatalogTests.cs" /></ItemGroup>
+  <ItemGroup><Compile Include="..\PS5CatalogBrowser.Tests\OrbitKeyTests.cs" Link="OrbitKeyTests.cs" /></ItemGroup>
+  <ItemGroup><Compile Include="..\PS5CatalogBrowser.Tests\ArchivePasswordTests.cs" Link="ArchivePasswordTests.cs" /></ItemGroup>
+  <Target Name="CopyOrbitFrontend" AfterTargets="Build">
+    <ItemGroup><OrbitFrontendFiles Include="$(MSBuildProjectDirectory)/../UI/build/**/*" /></ItemGroup>
+    <Copy SourceFiles="@(OrbitFrontendFiles)" DestinationFiles="@(OrbitFrontendFiles->'$(OutDir)OrbitFrontend/%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+  </Target>
+  <ItemGroup><EmbeddedResource Include="../PS5CatalogBrowser.Tests/TestData/rar5-reader-regression.rar" LogicalName="rar5-reader-regression.rar" /></ItemGroup>
+  <ItemGroup><EmbeddedResource Include="../PS5CatalogBrowser.Tests/TestData/rar5-encrypted-buffer-regression.rar" LogicalName="rar5-encrypted-buffer-regression.rar" /></ItemGroup>
+</Project>

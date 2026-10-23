@@ -1,0 +1,162 @@
+.pn-game-download {
+  order: 0;
+}
+
+.versions-group {
+  order: 1;
+}
+
+.media-gallery-artwork-group {
+  order: 2;
+}
+
+.media-gallery-screenshots-group {
+  order: 3;
+}
+
+.media-gallery-trailers-group {
+  order: 4;
+}
+
+.pn-about {
+  order: 5;
+}
+
+.windows-save-to-group {
+  order: 6;
+}
+
+.pn-space,
+.pn-steps {
+  order: 7;
+}
+
+.pn-tab-game .iface-main {
+  overflow: hidden;
+}
+
+.pn-tab-game .pn-page {
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+}
+
+.media-gallery-tile {
+  min-width: 0;
+}
+
+.media-gallery-skeleton {
+  min-width: 0;
+  background: linear-gradient(110deg, #252a33 25%, #343a45 40%, #252a33 55%);
+  background-size: 220% 100%;
+  animation: media-gallery-skeleton 1.5s ease-in-out infinite;
+}
+
+@keyframes media-gallery-skeleton {
+  to { background-position-x: -220%; }
+}
+
+.media-gallery-tile .pn-tile-hit {
+  border-radius: inherit;
+}
+
+.media-gallery-video::after {
+  content: "▶";
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  width: 3rem;
+  height: 3rem;
+  place-items: center;
+  padding-left: 0.2rem;
+  border-radius: 50%;
+  background: #000b;
+  color: white;
+  font-size: 1.25rem;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.media-gallery-status {
+  margin: 0;
+  color: #ddd;
+  font-size: 0.82rem;
+}
+
+.media-viewer-scrim {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 3rem;
+  background: #000f;
+}
+
+.media-viewer {
+  position: relative;
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  outline: none;
+}
+
+.media-viewer-close {
+  position: absolute;
+  z-index: 2;
+  top: 0.5rem;
+  right: 0.5rem;
+  width: 3rem;
+  height: 3rem;
+  border: 1px solid #ffffff8c;
+  border-radius: 50%;
+  background: #181818;
+  color: white;
+  font-size: 2rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.media-viewer-close:focus-visible {
+  outline: 3px solid white;
+  outline-offset: 3px;
+}
+
+.media-viewer-image,
+.media-viewer-video {
+  width: min(100%, 160vh);
+  height: min(100%, 56.25vw);
+  border: 0;
+  object-fit: contain;
+}
+
+.media-viewer-video {
+  background: black;
+}
+
+@media (max-width: 760px) {
+  .media-gallery-group .pn-tiles {
+    grid-template-columns: repeat(6, minmax(0, var(--pn-unit)));
+  }
+
+  .media-viewer-scrim {
+    padding: 0.75rem;
+  }
+
+  .media-viewer-image,
+  .media-viewer-video {
+    width: 100%;
+    height: auto;
+    max-height: 90svh;
+    aspect-ratio: 16 / 9;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .media-gallery-skeleton { animation: none; }
+}

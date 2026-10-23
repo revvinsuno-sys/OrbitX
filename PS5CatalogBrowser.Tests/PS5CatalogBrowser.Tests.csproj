@@ -1,0 +1,16 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\PS5CatalogBrowser.Core\PS5CatalogBrowser.Core.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup><EmbeddedResource Include="TestData/rar5-reader-regression.rar" LogicalName="rar5-reader-regression.rar" /></ItemGroup>
+  <ItemGroup><EmbeddedResource Include="TestData/rar5-encrypted-buffer-regression.rar" LogicalName="rar5-encrypted-buffer-regression.rar" /></ItemGroup>
+</Project>

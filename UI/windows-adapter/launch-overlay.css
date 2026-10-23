@@ -1,0 +1,61 @@
+body.windows-launch-active #root {
+  filter: blur(9px);
+  pointer-events: none;
+  user-select: none;
+  transition: filter 320ms ease;
+}
+
+body.windows-launch-active #root * {
+  animation-play-state: paused !important;
+  transition: none !important;
+}
+
+.windows-launch-overlay {
+  position: fixed;
+  z-index: 2147483647;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgb(4 8 16 / 42%);
+  opacity: 1;
+  transition: opacity 320ms ease, background-color 320ms ease;
+  cursor: wait;
+}
+
+.windows-launch-overlay.is-fading {
+  opacity: 0;
+  background: transparent;
+}
+
+.windows-launch-dialog {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-width: min(520px, calc(100vw - 40px));
+  padding: 20px 26px;
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 14px;
+  background: #111a28;
+  color: #f7f9fc;
+  box-shadow: 0 18px 64px rgb(0 0 0 / 38%);
+  font: 600 17px/1.45 system-ui, sans-serif;
+}
+
+.windows-launch-dialog p { margin: 0; }
+
+.windows-launch-spinner {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  border: 2px solid rgb(255 255 255 / 26%);
+  border-top-color: #8bb8ff;
+  border-radius: 50%;
+  animation: windows-launch-spin 900ms linear infinite;
+}
+
+@keyframes windows-launch-spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .windows-launch-overlay { transition-duration: 1ms; }
+  .windows-launch-spinner { animation-duration: 2s; }
+}

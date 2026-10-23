@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <EnableNETAnalyzers>false</EnableNETAnalyzers>
+    <DefineConstants>CORE</DefineConstants>
+    <AssemblyName>LibOrbisPkg.Reader</AssemblyName>
+    <NoWarn>$(NoWarn);SYSLIB0021;SYSLIB0045;SYSLIB0048;CS0649;CS8981</NoWarn>
+  </PropertyGroup>
+</Project>

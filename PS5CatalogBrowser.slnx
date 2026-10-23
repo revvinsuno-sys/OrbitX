@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="PS5CatalogBrowser.App/PS5CatalogBrowser.App.csproj" />
+  <Project Path="PS5CatalogBrowser.Core/PS5CatalogBrowser.Core.csproj" />
+  <Project Path="PS5CatalogBrowser.MountHost/PS5CatalogBrowser.MountHost.csproj" />
+  <Project Path="PS5CatalogBrowser.Tests/PS5CatalogBrowser.Tests.csproj" />
+  <Project Path="PS5CatalogBrowser.BrowserTests/PS5CatalogBrowser.BrowserTests.csproj" />
+</Solution>

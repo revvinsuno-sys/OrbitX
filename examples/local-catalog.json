@@ -1,0 +1,21 @@
+{
+  "entries": [
+    {
+      "id": "local-fixture-game",
+      "title": "Local fixture game",
+      "title_id": "TEST00001",
+      "description": "Example metadata only; replace URLs with files you are authorised to download.",
+      "platform": "ps5",
+      "kind": "game",
+      "format": "zip",
+      "version": "1.0",
+      "size": "1 MB",
+      "files": [
+        { "name": "fixture.zip", "url": "http://127.0.0.1:8000/fixture.zip" }
+      ],
+      "source_sets": [
+        { "host": "local mirror", "files": [{ "name": "fixture.zip", "url": "http://127.0.0.1:8001/fixture.zip" }] }
+      ]
+    }
+  ]
+}

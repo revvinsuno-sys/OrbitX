@@ -1,0 +1,18 @@
+{
+  "project": "Orbit Store",
+  "repository": "https://github.com/saawant12/orbit-store-ps5",
+  "release": "v1.3.5",
+  "releaseUrl": "https://github.com/saawant12/orbit-store-ps5/releases/tag/v1.3.5",
+  "bundleUrl": "https://github.com/saawant12/orbit-store-ps5/releases/download/v1.3.5/orbit-store-1.3.5-source-bundle.zip",
+  "bundleSha256": "c0fe51d94b199daa77b620b5d596afc13b77902076db313891885d0e54339858",
+  "sourceArchive": "orbit-store-1.3.5-source.tar.gz",
+  "sourceArchiveSha256": "74bdf1d37e821d1d622134420104ea99cfdd763d006d28c2fbdf3025580e3cc6",
+  "sourceCommit": "8043189a7d319be3ffdf828e08bf5a0f105a30fd",
+  "publicGuideCommitAtAcquisition": "e54f1ae1e8234da856e9c9dd39d2c9082b7a9b38",
+  "sourceCommitEvidence": "SOURCES.json inside the verified official release bundle; the public guide repository is not the frontend source repository",
+  "vendoredManifest": "upstream-files.json",
+  "upstreamFilesModified": 0,
+  "licence": "GPL-3.0-or-later",
+  "scope": "Browser frontend, i18n, original fonts/logo, pinned package/build inputs and applicable notices only. No PS5 backend, keys, commercial catalogue data or commercial artwork.",
+  "adapterContract": 2
+}

@@ -1,0 +1,719 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 4b24b1c0a65d8710c7be76caeafa2414120bc941..b1191e3b189d5588efb94680121cb35cc5edc92f 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -526,6 +526,9 @@ add_executable(controller_settings_tests EXCLUDE_FROM_ALL
+ target_link_libraries(controller_settings_tests common fmt::fmt SDL3::SDL3-static)
+ target_include_directories(controller_settings_tests PRIVATE ${inc_headers})
+ 
++add_executable(emulator_menu_tests EXCLUDE_FROM_ALL "${KYTY_TESTS_DIR}/EmulatorMenuTests.cpp")
++target_include_directories(emulator_menu_tests PRIVATE "${KYTY_SOURCE_DIR}" "${KYTY_THIRD_PARTY_DIR}/SDL3/include")
++
+ add_executable(host_input_tests EXCLUDE_FROM_ALL "${KYTY_TESTS_DIR}/HostInputTests.cpp")
+ target_link_libraries(host_input_tests common fmt::fmt SDL3::SDL3-static)
+ target_include_directories(host_input_tests PRIVATE ${inc_headers})
+@@ -648,6 +651,7 @@ if(BUILD_TESTING)
+ 	add_test(NAME ngs2_sampler COMMAND $<TARGET_FILE:ngs2_sampler_tests>)
+ 	add_test(NAME pad_haptics COMMAND $<TARGET_FILE:pad_haptics_tests>)
+ 	add_test(NAME controller_settings COMMAND $<TARGET_FILE:controller_settings_tests>)
++	add_test(NAME emulator_menu COMMAND $<TARGET_FILE:emulator_menu_tests>)
+ 	add_test(NAME host_input COMMAND $<TARGET_FILE:host_input_tests>)
+ 	add_test(NAME save_data_memory COMMAND $<TARGET_FILE:save_data_memory_tests>)
+ 	add_test(NAME png_enc COMMAND $<TARGET_FILE:png_enc_tests>)
+@@ -728,6 +732,7 @@ if(BUILD_TESTING)
+ 		ngs2_sampler_tests
+ 		pad_haptics_tests
+ 		controller_settings_tests
++		emulator_menu_tests
+ 		host_input_tests
+ 		save_data_memory_tests
+ 		png_enc_tests
+diff --git a/README.md b/README.md
+index eb8659acb21026731da669124df1fd99f1ccdb5d..9bd4ac12a89e4b465cd9a41e75b745196d242366 100644
+--- a/README.md
++++ b/README.md
+@@ -418,6 +418,16 @@ SDL_VULKAN_LIBRARY=/path/to/libMoltenVK.dylib ./kyty_emulator --game "/games/Exa
+ Run `kyty_emulator --help` to see the available graphics, logging, validation, profiling, and
+ debugging options.
+ 
++The Xbox Guide / PlayStation PS button or F10 opens the local game menu. Use the D-pad,
++left stick, or arrow keys to choose Continue or Exit to library; A / Cross / Enter selects,
++and B / Circle / Escape continues. Both rows can also be clicked. Continue is selected
++whenever the menu opens. The menu captures game controls while visible but does not
++suspend guest execution: the game keeps running, as stated in the menu. Exit follows the
++same shutdown path as closing the game window; save progress in the game first. When
++started by OrbitX, leave the browser open so it can return to My Library on
++exit. Guide-button reporting depends on the controller and platform driver; F10 is the
++keyboard alternative.
++
+ ### AI Use
+ 
+ AI tools may be used for research, reverse engineering, and development assistance. Contributors
+diff --git a/src/common/emulatorConfig.cpp b/src/common/emulatorConfig.cpp
+index 7705f5c610fe3af09e6b365543af38d63799529f..1d81503053cdc1addf3a8139c71d6a09b9c3154d 100644
+--- a/src/common/emulatorConfig.cpp
++++ b/src/common/emulatorConfig.cpp
+@@ -145,6 +145,10 @@ std::filesystem::path GetShaderLogFolder() {
+ 	return g_config->shader_log_folder;
+ }
+ 
++std::filesystem::path GetShaderCacheFolder() {
++	return g_config->shader_cache_folder;
++}
++
+ bool CommandBufferDumpEnabled() {
+ 	return g_config->command_buffer_dump_enabled;
+ }
+diff --git a/src/common/emulatorConfig.h b/src/common/emulatorConfig.h
+index 4387dafc933cfe862cf0018b70e76da32105a5b9..405f880ca43ba34369a24b1d9e7e5c9e7bb07ddf 100644
+--- a/src/common/emulatorConfig.h
++++ b/src/common/emulatorConfig.h
+@@ -75,6 +75,7 @@ struct ConfigOptions {
+ 	ShaderOptimizationType shader_optimization_type    = ShaderOptimizationType::None;
+ 	LogDirection           shader_log_direction        = LogDirection::Silent;
+ 	std::filesystem::path  shader_log_folder           = "_Shaders";
++	std::filesystem::path  shader_cache_folder         = "_PipelineCache";
+ 	bool                   command_buffer_dump_enabled = false;
+ 	std::filesystem::path  command_buffer_dump_folder  = "_Buffers";
+ 	bool                   graphics_debug_dump_enabled = false;
+@@ -133,6 +134,7 @@ bool                   ShaderValidationEnabled();
+ ShaderOptimizationType GetShaderOptimizationType();
+ LogDirection           GetShaderLogDirection();
+ std::filesystem::path  GetShaderLogFolder();
++std::filesystem::path  GetShaderCacheFolder();
+ 
+ bool                  CommandBufferDumpEnabled();
+ std::filesystem::path GetCommandBufferDumpFolder();
+diff --git a/src/graphics/host_gpu/renderer/pipeline/pipelineCache.cpp b/src/graphics/host_gpu/renderer/pipeline/pipelineCache.cpp
+index 8b56466276a47bae2d2d45794740867acf67d175..583d74ce1cfe811edeefbf255eefce41f29e0211 100644
+--- a/src/graphics/host_gpu/renderer/pipeline/pipelineCache.cpp
++++ b/src/graphics/host_gpu/renderer/pipeline/pipelineCache.cpp
+@@ -531,7 +531,7 @@ void PipelineCache::InitializeDriverCache() {
+ 		PipelineCacheLog("Vulkan pipeline cache: disabled (non-Release build)");
+ 		return;
+ 	}
+-	m_driver_cache_path     = std::filesystem::path("_PipelineCache") / (title_id + ".bin");
++	m_driver_cache_path     = Config::GetShaderCacheFolder() / (title_id + ".bin");
+ 	const auto path         = Common::PathToString(m_driver_cache_path);
+ 	const bool cache_exists = Common::File::IsFileExisting(m_driver_cache_path);
+ 	if (cache_exists) {
+diff --git a/src/graphics/presentation/emulatorMenu.h b/src/graphics/presentation/emulatorMenu.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..8c8d9a5467c263843df73a7d6a2bab52739a1061
+--- /dev/null
++++ b/src/graphics/presentation/emulatorMenu.h
+@@ -0,0 +1,147 @@
++#ifndef KYTY_GRAPHICS_PRESENTATION_EMULATOR_MENU_H_
++#define KYTY_GRAPHICS_PRESENTATION_EMULATOR_MENU_H_
++
++#include <SDL3/SDL.h>
++#include <algorithm>
++#include <cstdint>
++#include <mutex>
++
++namespace Libs::Graphics {
++
++enum class EmulatorMenuResult { Ignored, Consumed, Quit };
++
++struct EmulatorMenuLayout {
++	float scale;
++	float left;
++	float top;
++	float width;
++	float height;
++
++	static EmulatorMenuLayout ForSize(float width, float height) {
++		const float scale = std::min(width / 1280.0f, height / 720.0f);
++		return {scale, (width - 640.0f * scale) * 0.5f, (height - 360.0f * scale) * 0.5f,
++		        640.0f * scale, 360.0f * scale};
++	}
++
++	int RowAt(float x, float y) const {
++		if (x < left + 24.0f * scale || x > left + width - 24.0f * scale) {
++			return -1;
++		}
++		for (int row = 0; row < 2; ++row) {
++			const float row_top = top + (140.0f + row * 72.0f) * scale;
++			if (y >= row_top && y <= row_top + 60.0f * scale) {
++				return row;
++			}
++		}
++		return -1;
++	}
++};
++
++class EmulatorMenu final {
++public:
++	struct Snapshot {
++		bool     visible;
++		bool     exit_selected;
++		uint64_t revision;
++	};
++
++	Snapshot Read() const {
++		std::scoped_lock lock(m_mutex);
++		return m_state;
++	}
++
++	EmulatorMenuResult Handle(const SDL_Event& event, float width = 1280, float height = 720) {
++		const auto state = Read();
++		const bool guide = (event.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN ||
++		                    event.type == SDL_EVENT_GAMEPAD_BUTTON_UP) &&
++		                   event.gbutton.button == SDL_GAMEPAD_BUTTON_GUIDE;
++		const bool toggle_key =
++		    (event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_KEY_UP) &&
++		    event.key.key == SDLK_F10;
++		if (guide || toggle_key) {
++			if ((guide && event.gbutton.down) ||
++			    (toggle_key && event.key.down && !event.key.repeat)) {
++				Set(!state.visible, false);
++			}
++			return EmulatorMenuResult::Consumed;
++		}
++		if (!state.visible) {
++			return EmulatorMenuResult::Ignored;
++		}
++		switch (event.type) {
++			case SDL_EVENT_KEY_DOWN:
++				if (!event.key.repeat) {
++					switch (event.key.key) {
++						case SDLK_ESCAPE: Set(false, false); break;
++						case SDLK_UP: Set(true, false); break;
++						case SDLK_DOWN: Set(true, true); break;
++						case SDLK_RETURN:
++						case SDLK_KP_ENTER: return Confirm(state.exit_selected);
++						default: break;
++					}
++				}
++				return EmulatorMenuResult::Consumed;
++			case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
++				switch (event.gbutton.button) {
++					case SDL_GAMEPAD_BUTTON_EAST: Set(false, false); break;
++					case SDL_GAMEPAD_BUTTON_DPAD_UP: Set(true, false); break;
++					case SDL_GAMEPAD_BUTTON_DPAD_DOWN: Set(true, true); break;
++					case SDL_GAMEPAD_BUTTON_SOUTH: return Confirm(state.exit_selected);
++					default: break;
++				}
++				return EmulatorMenuResult::Consumed;
++			case SDL_EVENT_GAMEPAD_AXIS_MOTION:
++				if (event.gaxis.axis == SDL_GAMEPAD_AXIS_LEFTY &&
++				    (event.gaxis.value < -16000 || event.gaxis.value > 16000)) {
++					Set(true, event.gaxis.value > 0);
++				}
++				return EmulatorMenuResult::Consumed;
++			case SDL_EVENT_MOUSE_BUTTON_DOWN:
++				if (event.button.button == SDL_BUTTON_LEFT) {
++					const int row = EmulatorMenuLayout::ForSize(width, height)
++					                    .RowAt(event.button.x, event.button.y);
++					if (row >= 0) {
++						return Confirm(row == 1);
++					}
++				}
++				return EmulatorMenuResult::Consumed;
++			case SDL_EVENT_KEY_UP:
++			case SDL_EVENT_TEXT_INPUT:
++			case SDL_EVENT_TEXT_EDITING:
++			case SDL_EVENT_MOUSE_BUTTON_UP:
++			case SDL_EVENT_MOUSE_MOTION:
++			case SDL_EVENT_MOUSE_WHEEL:
++			case SDL_EVENT_FINGER_DOWN:
++			case SDL_EVENT_FINGER_UP:
++			case SDL_EVENT_FINGER_MOTION:
++			case SDL_EVENT_GAMEPAD_BUTTON_UP:
++			case SDL_EVENT_GAMEPAD_TOUCHPAD_DOWN:
++			case SDL_EVENT_GAMEPAD_TOUCHPAD_UP:
++			case SDL_EVENT_GAMEPAD_TOUCHPAD_MOTION:
++			case SDL_EVENT_GAMEPAD_SENSOR_UPDATE: return EmulatorMenuResult::Consumed;
++			default: return EmulatorMenuResult::Ignored;
++		}
++	}
++
++private:
++	void Set(bool visible, bool exit_selected) {
++		std::scoped_lock lock(m_mutex);
++		if (m_state.visible != visible || m_state.exit_selected != exit_selected) {
++			m_state.visible = visible;
++			m_state.exit_selected = exit_selected;
++			m_state.revision++;
++		}
++	}
++
++	EmulatorMenuResult Confirm(bool exit_selected) {
++		Set(false, false);
++		return exit_selected ? EmulatorMenuResult::Quit : EmulatorMenuResult::Consumed;
++	}
++
++	mutable std::mutex m_mutex;
++	Snapshot m_state {false, false, 0};
++};
++
++} // namespace Libs::Graphics
++
++#endif
+diff --git a/src/graphics/presentation/systemOverlay.cpp b/src/graphics/presentation/systemOverlay.cpp
+index 9993b836370424ae5033b87ee9015fa83b2f3e71..3120442ac520708d795af519401a1ba0d3bf99a3 100644
+--- a/src/graphics/presentation/systemOverlay.cpp
++++ b/src/graphics/presentation/systemOverlay.cpp
+@@ -48,6 +48,8 @@ namespace {
+ 
+ using Clock = std::chrono::steady_clock;
+ 
++EmulatorMenu g_emulator_menu;
++
+ namespace CoreIme      = Libs::Ime;
+ namespace DialogIme    = Libs::Dialog::ImeDialog;
+ namespace SystemDialog = Libs::Dialog::SystemDialog;
+@@ -709,11 +711,34 @@ SystemOverlayVisualState GetSystemOverlayVisualState() noexcept {
+ 	const bool trophy_active = g_trophy_notification_active.load(std::memory_order_acquire);
+ 	const bool splash        = g_splash_active.load(std::memory_order_acquire);
+ 	const auto cursor        = GetHostInputTouchPadVisualState();
++	const auto menu          = g_emulator_menu.Read();
+ 	return {core.active || dialog.active || system.active || trophy_active || splash ||
+-	            (cursor.enabled && cursor.cursor_visible),
++	            menu.visible || (cursor.enabled && cursor.cursor_visible),
+ 	        core.revision + dialog.revision + system.revision + (trophy_active ? 1u : 0u) +
+ 	            (splash ? 2u : 0u) + static_cast<decltype(core.revision)>(cursor.revision) +
+-	            PerformanceOverlayRevision()};
++	            menu.revision + PerformanceOverlayRevision()};
++}
++
++bool IsEmulatorMenuVisible() {
++	return g_emulator_menu.Read().visible;
++}
++
++EmulatorMenuResult ProcessEmulatorMenuInput(const SDL_Event& event) {
++	int width  = 1280;
++	int height = 720;
++	if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && g_input_window != nullptr) {
++		SDL_GetWindowSize(g_input_window, &width, &height);
++	}
++	const bool was_visible = IsEmulatorMenuVisible();
++	const auto result =
++	    g_emulator_menu.Handle(event, static_cast<float>(width), static_cast<float>(height));
++	if (was_visible != IsEmulatorMenuVisible()) {
++		std::scoped_lock lock(g_input_mutex);
++		g_input_events.clear();
++		g_input_reset_requested = true;
++		LOGF("Emulator menu: %s\n", IsEmulatorMenuVisible() ? "open" : "closed");
++	}
++	return result;
+ }
+ 
+ bool ProcessSystemOverlayInput(const SDL_Event& event) {
+@@ -1793,13 +1818,58 @@ struct SystemOverlay::Impl {
+ 		draw->PopClipRect();
+ 	}
+ 
++	void DrawEmulatorMenu(vk::Extent2D frame_extent, EmulatorMenu::Snapshot menu) {
++		const auto layout = EmulatorMenuLayout::ForSize(static_cast<float>(frame_extent.width),
++		                                                static_cast<float>(frame_extent.height));
++		const auto s      = layout.scale;
++		auto*      draw   = ImGui::GetForegroundDrawList();
++		draw->AddRectFilled(
++		    {0, 0},
++		    {static_cast<float>(frame_extent.width), static_cast<float>(frame_extent.height)},
++		    IM_COL32(0, 0, 0, 180));
++		draw->AddRectFilled({layout.left, layout.top},
++		                    {layout.left + layout.width, layout.top + layout.height},
++		                    IM_COL32(24, 26, 32, 255), 12.0f * s);
++		const auto text = [&](float x, float y, float size, ImU32 color, const char* value) {
++			draw->AddText(nullptr, size * s, {layout.left + x * s, layout.top + y * s}, color,
++			              value);
++		};
++		text(24, 24, 30, IM_COL32_WHITE, "KytyPS5 game menu");
++		text(24, 70, 16, IM_COL32(220, 222, 230, 255),
++		     "The game keeps running while this menu is open.");
++		text(24, 96, 16, IM_COL32(255, 207, 130, 255),
++		     "Exit closes KytyPS5. Unsaved progress will be lost.");
++		for (int row = 0; row < 2; ++row) {
++			const bool  selected = menu.exit_selected == (row == 1);
++			const float y        = 140.0f + row * 72.0f;
++			draw->AddRectFilled(
++			    {layout.left + 24.0f * s, layout.top + y * s},
++			    {layout.left + layout.width - 24.0f * s, layout.top + (y + 60.0f) * s},
++			    selected ? IM_COL32(47, 74, 107, 255) : IM_COL32(38, 40, 49, 255), 6.0f * s);
++			if (selected) {
++				draw->AddRect(
++				    {layout.left + 24.0f * s, layout.top + y * s},
++				    {layout.left + layout.width - 24.0f * s, layout.top + (y + 60.0f) * s},
++				    IM_COL32(157, 215, 247, 255), 6.0f * s, 0, 2.0f * s);
++			}
++			text(40, y + 16, 24, IM_COL32_WHITE,
++			     row == 0 ? (selected ? "> Continue" : "  Continue")
++			              : (selected ? "> Exit to library" : "  Exit to library"));
++		}
++		text(24, 302, 16, IM_COL32(220, 222, 230, 255),
++		     "D-pad / arrows: Choose   A / Enter: Select   B / Esc: Continue");
++		text(24, 328, 14, IM_COL32(200, 204, 215, 255),
++		     "Xbox / PS button or F10: Open or close menu");
++	}
++
+ 	bool PrepareFrame(vk::Extent2D frame_extent, vk::Format format, uint32_t image_count) {
+ 		OverlaySnapshot snapshot;
+ 		const bool      has_overlay = GetOverlaySnapshot(&snapshot);
++		const auto      menu        = g_emulator_menu.Read();
+ 		const auto now = Clock::now();
+ 		if (!has_overlay && !g_trophy_notification_active.load(std::memory_order_acquire) &&
+ 		    !g_splash_active.load(std::memory_order_acquire) &&
+-		    !GetHostInputTouchPadVisualState().enabled && !PerformanceOverlayEnabled()) {
++		    !GetHostInputTouchPadVisualState().enabled && !menu.visible && !PerformanceOverlayEnabled()) {
+ 			return false;
+ 		}
+ 		const auto prepared_session = snapshot.session;
+@@ -1817,7 +1887,9 @@ struct SystemOverlay::Impl {
+ 			io.ClearInputKeys();
+ 			io.ClearInputMouse();
+ 		}
+-		DrainInput(snapshot.session);
++		if (!menu.visible) {
++			DrainInput(snapshot.session);
++		}
+ 
+ 		auto& io       = ImGui::GetIO();
+ 		io.DisplaySize = {static_cast<float>(frame_extent.width),
+@@ -1832,7 +1904,7 @@ struct SystemOverlay::Impl {
+ 		DrawSplash(frame_extent);
+ 		const float performance_bottom = DrawPerformanceOverlay(graphics, frame_extent);
+ 		GetOverlaySnapshot(&snapshot);
+-		if (has_overlay && snapshot.session == prepared_session) {
++		if (!menu.visible && has_overlay && snapshot.session == prepared_session) {
+ 			if (snapshot.session.kind == OverlayKind::Dialog) {
+ 				DrawDialog(snapshot.dialog, frame_extent);
+ 			} else {
+@@ -1840,7 +1912,11 @@ struct SystemOverlay::Impl {
+ 			}
+ 		}
+ 		DrawTrophyNotification(frame_extent, now, performance_bottom);
+-		DrawTouchPadCursor(GetHostInputTouchPadVisualState());
++		if (menu.visible) {
++			DrawEmulatorMenu(frame_extent, menu);
++		} else {
++			DrawTouchPadCursor(GetHostInputTouchPadVisualState());
++		}
+ 		ImGui::Render();
+ 		extent = frame_extent;
+ 		return true;
+diff --git a/src/graphics/presentation/systemOverlay.h b/src/graphics/presentation/systemOverlay.h
+index 7a3c1e94e2c14915bfb2f94f5874c1bd92fc25f1..3d46aa25583e5024f9df0bec9343ae40fb74bac7 100644
+--- a/src/graphics/presentation/systemOverlay.h
++++ b/src/graphics/presentation/systemOverlay.h
+@@ -3,6 +3,7 @@
+ 
+ #include "common/common.h"
+ #include "graphics/host_gpu/vulkanCommon.h"
++#include "graphics/presentation/emulatorMenu.h"
+ 
+ #include <cstddef>
+ #include <filesystem>
+@@ -27,6 +28,8 @@ void                     HideSplashScreen();
+ void                     InitializeSystemOverlayInput(SDL_Window* window);
+ void                     ShutdownSystemOverlayInput();
+ bool                     ProcessSystemOverlayInput(const SDL_Event& event);
++EmulatorMenuResult       ProcessEmulatorMenuInput(const SDL_Event& event);
++bool                     IsEmulatorMenuVisible();
+ SystemOverlayVisualState GetSystemOverlayVisualState() noexcept;
+ void                     NotifyTrophyUnlocked(std::string_view name, int32_t grade,
+                                               std::span<const std::byte> icon_png);
+diff --git a/src/graphics/presentation/window/hostInput.cpp b/src/graphics/presentation/window/hostInput.cpp
+index 48f2dbb42807306815794f203ec389d7d7e44266..0edb9eda1d7f17a319ff9a0f0dc0225cc1d1cb00 100644
+--- a/src/graphics/presentation/window/hostInput.cpp
++++ b/src/graphics/presentation/window/hostInput.cpp
+@@ -145,6 +145,7 @@ struct MouseJoystickState {
+ MouseJoystickState g_mouse;
+ SDL_Window*        g_mouse_window   = nullptr;
+ uint64_t           g_cursor_hide_at = 0;
++bool               g_input_captured = false;
+ 
+ struct MouseTouchPadState {
+ 	bool     enabled        = false;
+@@ -657,6 +658,9 @@ void ApplyPadControl(int id, std::size_t control, std::size_t source, bool down)
+ }
+ 
+ int PollGamepadTouchPad(uint64_t now_ms) {
++	if (g_input_captured) {
++		return -1;
++	}
+ 	float x       = 0;
+ 	float y       = 0;
+ 	int   id      = -1;
+@@ -749,6 +753,7 @@ void HostInputInit(SDL_Window* window) {
+ }
+ 
+ void HostInputShutdown() {
++	g_input_captured = false;
+ 	g_pad_trigger_pressed.clear();
+ 	HostInputSetTouchPadMode(false);
+ 	int gamepad_touch_id = -1;
+@@ -1018,7 +1023,7 @@ void HostInputToggleMouseToJoystick() {
+ 
+ bool HostInputWaitEvent(SDL_Event* event, int max_wait_ms) {
+ 	int timeout = -1;
+-	if (!g_mouse.enabled || SDL_GetKeyboardFocus() != g_mouse_window) {
++	if (g_input_captured || !g_mouse.enabled || SDL_GetKeyboardFocus() != g_mouse_window) {
+ 		g_mouse.next_poll = 0;
+ 		CenterMouseStick();
+ 	} else {
+@@ -1041,7 +1046,7 @@ bool HostInputWaitEvent(SDL_Event* event, int max_wait_ms) {
+ 	timeout              = timeout < 0 ? max_wait_ms : std::min(timeout, max_wait_ms);
+ 	const bool has_event = SDL_WaitEventTimeout(event, timeout);
+ 
+-	if (Config::HideCursorEnabled() && !TouchPadModeActive()) {
++	if (!g_input_captured && Config::HideCursorEnabled() && !TouchPadModeActive()) {
+ 		const auto now_ms = SDL_GetTicks();
+ 		if (has_event && !g_mouse.enabled && IsCursorActivity(*event) &&
+ 		    SDL_GetWindowFromEvent(event) == g_mouse_window) {
+@@ -1061,4 +1066,37 @@ bool HostInputWaitEvent(SDL_Event* event, int max_wait_ms) {
+ 	return has_event;
+ }
+ 
++void HostInputSetCaptured(bool captured) {
++	if (g_input_captured == captured) {
++		return;
++	}
++	g_input_captured  = captured;
++	g_mouse.next_poll = 0;
++	g_pad_trigger_pressed.clear();
++	{
++		std::scoped_lock lock(g_touchpad_mutex);
++		g_mouse_touchpad.drawing = false;
++		g_mouse_touchpad.gesture++;
++		g_mouse_touchpad.revision++;
++		g_gamepad_touchpad.drawing   = false;
++		g_gamepad_touchpad.x_axis    = 128;
++		g_gamepad_touchpad.y_axis    = 128;
++		g_gamepad_touchpad.next_poll = 0;
++		g_gamepad_touchpad.last_poll = 0;
++	}
++	Controller::ResetInputState();
++	if (g_mouse.enabled) {
++		SetRelativeMouseMode(!captured);
++		SDL_GetRelativeMouseState(nullptr, nullptr);
++	}
++	if (captured) {
++		g_cursor_hide_at = 0;
++		SDL_ShowCursor();
++	} else if (TouchPadModeActive()) {
++		SDL_HideCursor();
++	} else if (Config::HideCursorEnabled()) {
++		g_cursor_hide_at = SDL_GetTicks() + CURSOR_IDLE_HIDE_MS;
++	}
++}
++
+ } // namespace Libs::Graphics
+diff --git a/src/graphics/presentation/window/hostInput.h b/src/graphics/presentation/window/hostInput.h
+index 53e94640bd1ec839eaa4822ca555dfb7e9ae4d5d..05adb4f86e1ae00e047e84618704204dce3f225a 100644
+--- a/src/graphics/presentation/window/hostInput.h
++++ b/src/graphics/presentation/window/hostInput.h
+@@ -36,6 +36,7 @@ void               HostInputToggleGamepadTouchPad(int id);
+ void               HostInputDisconnectGamepadTouchPad(int id);
+ [[nodiscard]] HostInputTouchPadVisualState GetHostInputTouchPadVisualState();
+ void               HostInputToggleMouseToJoystick();
++void               HostInputSetCaptured(bool captured);
+ [[nodiscard]] bool HostInputWaitEvent(SDL_Event* event, int max_wait_ms);
+ 
+ } // namespace Libs::Graphics
+diff --git a/src/graphics/presentation/window/window.cpp b/src/graphics/presentation/window/window.cpp
+index 689086249eb7dbe63009522c224c438476c7d0a2..ead832f89a6c31306b1fe4bcc3595e14d6b570f5 100644
+--- a/src/graphics/presentation/window/window.cpp
++++ b/src/graphics/presentation/window/window.cpp
+@@ -459,6 +459,18 @@ void WindowContext::ProcessDisplayEvent(const SDL_DisplayEvent& display) {
+ void WindowContext::ProcessEvent(double time_s) {
+ 	auto& game  = loop;
+ 	auto* event = &game.event;
++	const bool menu_was_visible = IsEmulatorMenuVisible();
++	const auto menu_result = ProcessEmulatorMenuInput(*event);
++	if (menu_was_visible != IsEmulatorMenuVisible()) {
++		HostInputSetCaptured(IsEmulatorMenuVisible());
++	}
++	if (menu_result == EmulatorMenuResult::Quit) {
++		GameEventQuit(game);
++		return;
++	}
++	if (menu_result == EmulatorMenuResult::Consumed) {
++		return;
++	}
+ 	if (event->type == SDL_EVENT_KEY_DOWN || event->type == SDL_EVENT_KEY_UP) {
+ 		const bool pressed = event->type == SDL_EVENT_KEY_DOWN && event->key.repeat == 0;
+ 		switch (event->key.key) {
+diff --git a/src/main.cpp b/src/main.cpp
+index fec8b2cfb13b5eb82ad6c8a381990025a767dfe0..935d0b142ca629a1b2be2fdc5c8a29102f9f728d 100644
+--- a/src/main.cpp
++++ b/src/main.cpp
+@@ -80,6 +80,7 @@ static void PrintUsage() {
+ 	::printf("  --shader-optimization-type <value>   None, Size, or Performance.\n");
+ 	::printf("  --shader-log-direction <value>       Silent, Console, or File.\n");
+ 	::printf("  --shader-log-folder <path>           Shader log output folder.\n");
++	::printf("  --shader-cache-folder <path>         Absolute pipeline cache folder. Default: _PipelineCache.\n");
+ 	::printf("  --command-buffer-dump <true|false>   Enable command buffer dumps.\n");
+ 	::printf("  --command-buffer-dump-folder <path>  Command buffer dump folder.\n");
+ 	::printf("  --graphics-debug-dump <true|false>   Enable graphics debug dumps.\n");
+@@ -443,6 +444,13 @@ static bool ParseArgs(int argc, char* argv[], RunOptions& options, bool& show_he
+ 			}
+ 		} else if (arg == "--shader-log-folder") {
+ 			options.config.shader_log_folder = Common::PathFromUtf8(value);
++		} else if (arg == "--shader-cache-folder") {
++			auto folder = Common::PathFromUtf8(value);
++			if (folder.empty() || !folder.is_absolute()) {
++				::printf("invalid shader cache folder: use an absolute directory path\n");
++				return false;
++			}
++			options.config.shader_cache_folder = std::move(folder);
+ 		} else if (arg == "--command-buffer-dump") {
+ 			if (!ParseBool(value, options.config.command_buffer_dump_enabled)) {
+ 				::printf("invalid boolean for %s: %s\n", arg.c_str(), value.c_str());
+diff --git a/tests/EmulatorMenuTests.cpp b/tests/EmulatorMenuTests.cpp
+new file mode 100644
+index 0000000000000000000000000000000000000000..bc7e254f0003901983898b91df409cc0319f502e
+--- /dev/null
++++ b/tests/EmulatorMenuTests.cpp
+@@ -0,0 +1,105 @@
++#include "graphics/presentation/emulatorMenu.h"
++
++#include <cstdio>
++#include <cstdlib>
++
++using namespace Libs::Graphics;
++
++static void Check(bool condition, const char* message) {
++	if (!condition) {
++		std::fprintf(stderr, "FAIL emulator menu: %s\n", message);
++		std::exit(1);
++	}
++}
++
++static SDL_Event Button(Uint8 button, bool down = true) {
++	SDL_Event event {};
++	event.type           = down ? SDL_EVENT_GAMEPAD_BUTTON_DOWN : SDL_EVENT_GAMEPAD_BUTTON_UP;
++	event.gbutton.button = button;
++	event.gbutton.down   = down;
++	return event;
++}
++
++static SDL_Event Key(SDL_Keycode key, bool repeat = false) {
++	SDL_Event event {};
++	event.type       = SDL_EVENT_KEY_DOWN;
++	event.key.key    = key;
++	event.key.down   = true;
++	event.key.repeat = repeat;
++	return event;
++}
++
++int main() {
++	EmulatorMenu menu;
++	Check(menu.Handle(Button(SDL_GAMEPAD_BUTTON_SOUTH)) == EmulatorMenuResult::Ignored,
++	      "normal gameplay must pass through while closed");
++	menu.Handle(Button(SDL_GAMEPAD_BUTTON_GUIDE));
++	Check(menu.Read().visible && !menu.Read().exit_selected,
++	      "Guide must open with Continue selected");
++	menu.Handle(Button(SDL_GAMEPAD_BUTTON_GUIDE, false));
++	Check(menu.Read().visible, "Guide release must not toggle or exit");
++	Check(menu.Handle(Button(SDL_GAMEPAD_BUTTON_SOUTH)) == EmulatorMenuResult::Consumed &&
++	          !menu.Read().visible,
++	      "default confirmation must continue, never exit");
++	menu.Handle(Button(SDL_GAMEPAD_BUTTON_GUIDE));
++	menu.Handle(Button(SDL_GAMEPAD_BUTTON_DPAD_DOWN));
++	Check(menu.Read().exit_selected, "D-pad down must select Exit");
++	Check(menu.Handle(Button(SDL_GAMEPAD_BUTTON_EAST)) == EmulatorMenuResult::Consumed &&
++	          !menu.Read().visible,
++	      "cancel must dismiss even when Exit is selected");
++	menu.Handle(Button(SDL_GAMEPAD_BUTTON_GUIDE));
++	Check(!menu.Read().exit_selected, "reopening must forget an earlier Exit selection");
++	menu.Handle(Button(SDL_GAMEPAD_BUTTON_DPAD_DOWN));
++	Check(menu.Handle(Button(SDL_GAMEPAD_BUTTON_SOUTH)) == EmulatorMenuResult::Quit &&
++	          !menu.Read().visible,
++	      "Exit must request the normal quit path after explicit selection");
++	menu.Handle(Key(SDLK_F10));
++	const auto revision = menu.Read().revision;
++	menu.Handle(Key(SDLK_F10, true));
++	Check(menu.Read().visible && menu.Read().revision == revision,
++	      "held F10 must not flicker the menu");
++	menu.Handle(Key(SDLK_DOWN));
++	Check(menu.Handle(Key(SDLK_RETURN, true)) == EmulatorMenuResult::Consumed &&
++	          menu.Read().visible,
++	      "a held Enter key must not confirm Exit");
++	Check(menu.Handle(Key(SDLK_ESCAPE)) == EmulatorMenuResult::Consumed && !menu.Read().visible,
++	      "keyboard cancel must always continue");
++	menu.Handle(Key(SDLK_F10));
++	SDL_Event event {};
++	for (const Uint32 type:
++	     {SDL_EVENT_GAMEPAD_AXIS_MOTION, SDL_EVENT_GAMEPAD_TOUCHPAD_DOWN,
++	      SDL_EVENT_GAMEPAD_SENSOR_UPDATE, SDL_EVENT_MOUSE_WHEEL, SDL_EVENT_TEXT_INPUT}) {
++		event      = {};
++		event.type = type;
++		Check(menu.Handle(event) == EmulatorMenuResult::Consumed,
++		      "menu input must not reach the game");
++	}
++	for (const Uint32 type: {SDL_EVENT_QUIT, SDL_EVENT_WINDOW_FOCUS_LOST, SDL_EVENT_GAMEPAD_ADDED,
++	                         SDL_EVENT_GAMEPAD_REMOVED}) {
++		event      = {};
++		event.type = type;
++		Check(menu.Handle(event) == EmulatorMenuResult::Ignored,
++		      "window and device lifecycle events must pass through");
++	}
++	event             = {};
++	event.type        = SDL_EVENT_GAMEPAD_AXIS_MOTION;
++	event.gaxis.axis  = SDL_GAMEPAD_AXIS_LEFTY;
++	event.gaxis.value = 24000;
++	menu.Handle(event);
++	Check(menu.Read().exit_selected, "left stick down must select Exit");
++	event.gaxis.value = -24000;
++	menu.Handle(event);
++	Check(!menu.Read().exit_selected, "left stick up must select Continue");
++	for (const float scale: {0.5f, 1.0f, 2.0f}) {
++		event               = {};
++		event.type          = SDL_EVENT_MOUSE_BUTTON_DOWN;
++		event.button.button = SDL_BUTTON_LEFT;
++		event.button.x      = 640.0f * scale;
++		event.button.y      = 420.0f * scale;
++		Check(menu.Handle(event, 1280.0f * scale, 720.0f * scale) == EmulatorMenuResult::Quit,
++		      "mouse hit testing must match the rendered Exit row at every DPI");
++		menu.Handle(Key(SDLK_F10));
++	}
++	std::puts("PASS emulator menu controller, keyboard, capture, lifecycle, and "
++	          "pointer tests");
++}
+diff --git a/tests/HostInputTests.cpp b/tests/HostInputTests.cpp
+index 44b3c7b277514f544046bf971d12c6cca95ee9b5..f8563c0e527a69d1ac381b0eeba0b3195f3b6814 100644
+--- a/tests/HostInputTests.cpp
++++ b/tests/HostInputTests.cpp
+@@ -72,6 +72,11 @@ void SetTouchPad(int id, int finger, bool down, float, float) {
+ 	}
+ }
+ void SetRightStick(int, int, int) {}
++void ResetInputState() {
++	guest_buttons = 0;
++	guest_stick = {128, 128};
++	guest_touch = false;
++}
+ void ToggleGyroEmulation(int) {}
+ void CycleSetting(Setting) {}
+ } // namespace Libs::Controller
+@@ -190,6 +195,20 @@ void TestDisabledMappingTabs() {
+ }
+ } // namespace
+ 
++static void TestMenuCapture() {
++	Inputs inputs;
++	HostInputToggleGamepadTouchPad(1);
++	(void) HostInputGamepadAxis(1, false, 255);
++	(void) HostInputGamepadDrawButton(1, true);
++	HostInputSetCaptured(true);
++	Check(guest_buttons == 0 && !guest_touch && guest_stick == std::array {128, 128},
++	      "opening the menu must neutralize guest input");
++	Check(PollGamepadTouchPad(1016) < 0, "touchpad polling must stop while the menu captures input");
++	HostInputSetCaptured(false);
++	Check(!g_gamepad_touchpad.drawing && g_gamepad_touchpad.x_axis == 128 && g_gamepad_touchpad.y_axis == 128,
++	      "closing the menu must not resume a stale touchpad gesture");
++}
++
+ int main() {
+ 	Config::Initialize();
+ 	Config::ConfigOptions options;
+@@ -200,6 +219,7 @@ int main() {
+ 	TestIndependentTriggerEdges();
+ 	TestTriggerLifecycleReset();
+ 	TestDisabledMappingTabs();
++	TestMenuCapture();
+ 	Config::Shutdown();
+ 	return 0;
+ }

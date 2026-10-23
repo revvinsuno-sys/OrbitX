@@ -1,0 +1,72 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <Resource Include="Assets/Settings/*.png"/>
+    <Resource Include="Assets/Branding/*.png"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PS5CatalogBrowser.Core\PS5CatalogBrowser.Core.csproj" />
+    <ProjectReference Include="..\PS5CatalogBrowser.MountHost\PS5CatalogBrowser.MountHost.csproj" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4129.50" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="../LICENSE;../NOTICE.md;../THIRD-PARTY-NOTICES.md;../DISTRIBUTING.md" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../licenses/**/*" Link="licenses/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../UI/orbit-upstream/LICENSE;../UI/orbit-upstream/THIRD-PARTY-NOTICES.md" Link="licenses/OrbitStore/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../UI/orbit-upstream/licenses/*" Link="licenses/OrbitStore/licenses/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../ThirdParty/LibOrbisPkg/LICENSE.txt" Link="licenses/LibOrbisPkg/LICENSE.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../ThirdParty/LibProsperoPkg/LICENSE;../ThirdParty/LibProsperoPkg/NOTICE" Link="licenses/LibProsperoPkg/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <AssemblyName>OrbitX</AssemblyName>
+    <AssemblyTitle>OrbitX</AssemblyTitle>
+    <Product>OrbitX</Product>
+    <Description>OrbitX PS5 game library and emulator frontend</Description>
+    <Version>1.0.1</Version>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+  <ItemGroup>
+    <OrbitFrontendInputs Include="Assets/Branding/*;../UI/orbit-upstream/src/**/*;../UI/orbit-upstream/i18n/**/*;../UI/orbit-upstream/public/**/*;../UI/orbit-upstream/package*.json;../UI/orbit-upstream/index.html;../UI/orbit-upstream/tsconfig.json;../UI/windows-adapter/*;../UI/windows-adapter/assets/**/*;../UI/build-frontend.ps1;../UI/verify-upstream.ps1;../UI/upstream-files.json" />
+  </ItemGroup>
+  <Target Name="BuildOrbitFrontend" BeforeTargets="AssignTargetPaths" Inputs="@(OrbitFrontendInputs)" Outputs="../UI/build/asset-sha256.json">
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\..\UI\build-frontend.ps1&quot;" />
+  </Target>
+  <Target Name="CopyOrbitFrontend" AfterTargets="Build">
+    <ItemGroup><OrbitFrontendFiles Include="$(MSBuildProjectDirectory)/../UI/build/**/*" /></ItemGroup>
+    <Copy SourceFiles="@(OrbitFrontendFiles)" DestinationFiles="@(OrbitFrontendFiles->'$(OutDir)OrbitFrontend/%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+  </Target>
+  <Target Name="PublishOrbitFrontend" AfterTargets="Publish">
+    <ItemGroup><OrbitFrontendPublishFiles Include="$(MSBuildProjectDirectory)/../UI/build/**/*" /></ItemGroup>
+    <Copy SourceFiles="@(OrbitFrontendPublishFiles)" DestinationFiles="@(OrbitFrontendPublishFiles->'$(PublishDir)OrbitFrontend/%(RecursiveDir)%(Filename)%(Extension)')" />
+  </Target>
+  <Target Name="CopyMountHost" AfterTargets="Build">
+    <ItemGroup><MountHostFiles Include="../PS5CatalogBrowser.MountHost/bin/$(Configuration)/net10.0-windows/PS5CatalogBrowser.MountHost.*" /></ItemGroup>
+    <Copy SourceFiles="@(MountHostFiles)" DestinationFolder="$(OutDir)" />
+  </Target>
+  <Target Name="PublishMountHost" AfterTargets="Publish">
+    <ItemGroup><MountHostPublishFiles Include="../PS5CatalogBrowser.MountHost/bin/$(Configuration)/net10.0-windows/PS5CatalogBrowser.MountHost.*" /></ItemGroup>
+    <Copy SourceFiles="@(MountHostPublishFiles)" DestinationFolder="$(PublishDir)" />
+  </Target>
+  <ItemGroup>
+    <Content Include="../integrations/sharpemu/f10-menu.patch" Link="SharpEmuUpdate/f10-menu.patch" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+  <Target Name="CopyKytyUpdate" AfterTargets="Build">
+    <ItemGroup><KytyUpdateFiles Include="../integrations/kytyps5/Update-KytyPS5.ps1;../integrations/kytyps5/Set-ControllerMenuPatch.ps1;../integrations/kytyps5/controller-menu.patch" /></ItemGroup>
+    <Copy SourceFiles="@(KytyUpdateFiles)" DestinationFiles="@(KytyUpdateFiles->'$(OutDir)KytyUpdate/%(Filename)%(Extension)')" />
+  </Target>
+  <Target Name="PublishKytyUpdate" AfterTargets="Publish">
+    <ItemGroup><KytyUpdatePublishFiles Include="../integrations/kytyps5/Update-KytyPS5.ps1;../integrations/kytyps5/Set-ControllerMenuPatch.ps1;../integrations/kytyps5/controller-menu.patch" /></ItemGroup>
+    <Copy SourceFiles="@(KytyUpdatePublishFiles)" DestinationFiles="@(KytyUpdatePublishFiles->'$(PublishDir)KytyUpdate/%(Filename)%(Extension)')" />
+  </Target>
+
+</Project>

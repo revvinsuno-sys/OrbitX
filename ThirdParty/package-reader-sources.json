@@ -1,0 +1,326 @@
+[
+  {
+    "ArchiveSha256": "28119771F29FF68C6BD58CB31364415E824F4424CBDE9556BE013AFF177753DA",
+    "SourcePrefix": "src/LibProsperoPkg",
+    "License": "GPL-3.0-or-later",
+    "Repository": "https://github.com/SvenGDK/LibProsperoPKG",
+    "Files": [
+      {
+        "Path": "PFS/Compression/Oodle/KrakenBitReader.cs",
+        "Sha256": "30FEE3D54DFA09E1FCEA05CB7CD79A3F26E37D776107F6B5E9B9FF8834F03D58"
+      },
+      {
+        "Path": "PFS/Compression/Oodle/KrakenDecoder.cs",
+        "Sha256": "0C403E14311D040BD609BB3A33F66EEB7F8D10C29E725B9B7AA89E6415E9AEA6"
+      },
+      {
+        "Path": "PFS/Compression/ProsperoCompressedPfsFile.cs",
+        "Sha256": "BD93756737840C7DD08361B16E460B80732CE701502550DAA7554229730B29A6",
+        "UpstreamSha256": "5A872F7FEDD49A912246F6F8F4D24E8CC9B84584535F6456C9C1CB8143D6B549"
+      },
+      {
+        "Path": "PFS/Compression/ProsperoPfsCompressionTypes.cs",
+        "Sha256": "6F59E2C3466D79CCAF50AD524194A4AFDC84EF88589DA50003BED34001F3887F"
+      },
+      {
+        "Path": "PFS/Compression/ProsperoPfsDigest.cs",
+        "Sha256": "5FC361226FF995BF661BF6C354FB034C590A7F65E2E6CD401B75DB884CD7A4F3"
+      },
+      {
+        "Path": "PFS/Compression/ProsperoPfsShuffle.cs",
+        "Sha256": "13AF304C6E8E8EB67F58F1E5C2C64DB0E53452FCB3E7789CDEAA88A84AF8C5F5"
+      },
+      {
+        "Path": "PFS/ProsperoFlatPathTable.cs",
+        "Sha256": "2E0E9862261A7ED95FC48D38063332AC5BDBC525BAE1BA6489F6704361BBBB9A"
+      },
+      {
+        "Path": "PFS/ProsperoFsTree.cs",
+        "Sha256": "3FA0C554FED450BE047F1D091A4AAD3030807F848E48EE3D0764D7074618E665"
+      },
+      {
+        "Path": "PFS/ProsperoOuterPfsImage.cs",
+        "Sha256": "579810D2B349220A922DAA13237FE860D9E8725ABD99FD330301F34179931F43"
+      },
+      {
+        "Path": "PFS/ProsperoOuterPfsSignature.cs",
+        "Sha256": "9CFF4AC9C9B55620D66FD2A1782E1C9B1585A4ACE07140198A5841AE830D3D4F"
+      },
+      {
+        "Path": "PFS/ProsperoPfsBuilder.cs",
+        "Sha256": "4A769D8F1906A1B7D171CEEF1B0E904092DC89E5BCE5724E7FC044B5392F5DD5"
+      },
+      {
+        "Path": "PFS/ProsperoPfscReader.cs",
+        "Sha256": "F62596596AA9C2EF9FE404FE3854D102AEEB02C118B7225DD53BFF429D1062BF"
+      },
+      {
+        "Path": "PFS/ProsperoPfscWriter.cs",
+        "Sha256": "A503DF68E03DAB7DA7448403499062C16CFF5D697AD748B75635195EC501D033"
+      },
+      {
+        "Path": "PFS/ProsperoPfsExtractor.cs",
+        "Sha256": "BC9A6C8CE48CF82429B65EF536D62E51A1A4FD120D4213D7ED3CD006B2CDD650"
+      },
+      {
+        "Path": "PFS/ProsperoPfsImageTree.cs",
+        "Sha256": "20DB850D4980CAA9D178B81D18B4A2003A5BAB9EF075741BC847A4015FB6C5FD"
+      },
+      {
+        "Path": "PFS/ProsperoPfsKeys.cs",
+        "Sha256": "B0003ECFA596416552AA6887F8BE929D2B9CEC00792C0D962777F105457A0FD4"
+      },
+      {
+        "Path": "PFS/ProsperoPfsProperties.cs",
+        "Sha256": "7828EFC87F29563780BF4D3AFF1EC816BD3047A0FEC08147A85F30DBA1ADBE93"
+      },
+      {
+        "Path": "PFS/ProsperoPfsReader.cs",
+        "Sha256": "7BDA3876873B23AB350C4778AB854672E2FB587E20E335EAA9E57C7E5D6147D2"
+      },
+      {
+        "Path": "PFS/ProsperoPfsStructs.cs",
+        "Sha256": "90A4ABA0CFAB6DC11C86F3EFD76DF3ABB0BEA337F0D5758A6E2ACAC4EC9A5C4A"
+      },
+      {
+        "Path": "PFS/ProsperoPs5FlatPathTable.cs",
+        "Sha256": "877F7942F22115364F9FC7F330067239EC1112C917FE75A6A67801E2F958ADFD"
+      },
+      {
+        "Path": "PFS/ProsperoPs5InnerImageReader.cs",
+        "Sha256": "A0A4A21996B9049DCC647EE5A8B585BEB50282CD0EAB0D1A7ED57BFDBC2A18A5",
+        "UpstreamSha256": "832D3CC0D861FF141AD164522A080F0BFD2418A4A49583629378D54178CD492E"
+      },
+      {
+        "Path": "PFS/ProsperoXtsDecryptReader.cs",
+        "Sha256": "D698A5A84FFFA1B6C0369FAD98B89EE86189FE8A8BCF7E55738216CEDD6C15FE"
+      },
+      {
+        "Path": "PKG/ProsperoCntEnums.cs",
+        "Sha256": "8FED760BD60CB954CBF825046846889F8246351CBFC469F0F85EBB52FF3AF5DB"
+      },
+      {
+        "Path": "PKG/ProsperoExtractionKey.cs",
+        "Sha256": "F283AC5B473F033CBC786A7E363935B468C74FEA04F152A69047BE0ABCC7E884"
+      },
+      {
+        "Path": "PKG/ProsperoNapsLayout.cs",
+        "Sha256": "F62AC342725807D5D38E57E2BB2DEC2011A53481D18210D28A830A5B5FBFE34E"
+      },
+      {
+        "Path": "PKG/ProsperoPackageExtractor.cs",
+        "Sha256": "1C4645E1B441C0318C6D5D4E15BAFAF6D281DC9060BCA17A984D3023F3AA258B",
+        "UpstreamSha256": "5D6FBAAF580DB91730C774853F3EE737C4C9DF23CC3CC6E1F5D16FB653DC811F"
+      },
+      {
+        "Path": "PKG/ProsperoPkg.cs",
+        "Sha256": "F8F83F746D9D3E1387ACB41CCE1307EC08E1DF077FF7B2774716E97B81E96C2E"
+      },
+      {
+        "Path": "PKG/ProsperoPkgEnums.cs",
+        "Sha256": "16E8FC9B590FF701BDE95868955F8662A92EEA49F96E329DB9DB715193BDCD1E"
+      },
+      {
+        "Path": "PKG/ProsperoPkgReader.cs",
+        "Sha256": "42066F019BE3ECB5636D69E178E83A88BCCD65D4776554CC9C96F8897877B078"
+      },
+      {
+        "Path": "Util/Crypto.cs",
+        "Sha256": "28E67FA00626B4EFA7283BA531E9D66A2C7A1C72B17A8CC0BECF49F30837EC7C"
+      },
+      {
+        "Path": "Util/Keys.cs",
+        "Sha256": "B22C0E64BF2269371C0E867145BD0103CA46B36102717C61789B95680991DB10"
+      },
+      {
+        "Path": "Util/MemoryMapped.cs",
+        "Sha256": "9FD76C04F21EAE3F23A624946C9DC37BF56AC30859912234189CCA530FF8F315"
+      },
+      {
+        "Path": "Util/MersenneTwister.cs",
+        "Sha256": "BCCC348C44EF3418149299E78EBB404A4EB648F725CAB01E2C0DB5AA0D168548"
+      },
+      {
+        "Path": "Util/OffsetStream.cs",
+        "Sha256": "49196762F4958BFB87D9CE7B2C28095BCC48DA575FDAA86CC8F9C11D09389FA8"
+      },
+      {
+        "Path": "Util/ProsperoCrc32C.cs",
+        "Sha256": "26D0A6160C559B7810B2CF35F06BD9F636B551A4467B66806733662DAF5B8B81"
+      },
+      {
+        "Path": "Util/StreamExtensions.cs",
+        "Sha256": "2BF79935FEC1476137892A09A5A6FA0B6E8BE36F550FA8398E8FBD1E260069E1"
+      },
+      {
+        "Path": "Util/SubStream.cs",
+        "Sha256": "9725BD52F42C5A419B906A40387A3DBE6BDB0B1D4C74BE8D266515017DD4BA05"
+      },
+      {
+        "Path": "Util/WriterBase.cs",
+        "Sha256": "571034749D959204907CD120CF1B3A767CE0AEF11ABEC67AD00FDD3468039C76"
+      },
+      {
+        "Path": "Util/XtsBlockTransform.cs",
+        "Sha256": "BC0A609C389A69FD73AB318DAB8EDC45E2DB5887D4957AB9DDC432ED11655186"
+      }
+    ],
+    "Directory": "LibProsperoPkg",
+    "Version": "2.6.0",
+    "Commit": "748eabf1b7d17819528cabf367d8e27109d8fce3"
+  },
+  {
+    "Repository": "https://github.com/maxton/LibOrbisPkg",
+    "License": "LGPL-3.0",
+    "Directory": "LibOrbisPkg",
+    "ArchiveSha256": "8F3B7B02CC28412F1FB740A2E1F47B25902BCA95DE063EA043D4F95B3C960AE0",
+    "Files": [
+      {
+        "Path": "GP4/Gp4Creator.cs",
+        "Sha256": "E8545EFCC398B2C26B5DC3F40AC63D8FCB1420B06D4498C55242F7A1DFD61811"
+      },
+      {
+        "Path": "GP4/Gp4Project.cs",
+        "Sha256": "9B5140E22D3E1A98A6441365C1DE322CDAFF3B4510AAF71368B4796760799597"
+      },
+      {
+        "Path": "GP4/Gp4Validator.cs",
+        "Sha256": "F5D7225C310AE1E63CC650C28026FAD6448B75DE0CCCFC50F4D372118C63421F"
+      },
+      {
+        "Path": "PFS/FlatPathTable.cs",
+        "Sha256": "EEC6077491AF19C2394797393A21B23A994E659233A4AA9C3BFA840C39821343"
+      },
+      {
+        "Path": "PFS/FSTree.cs",
+        "Sha256": "751C689DBDC04BD563C7FF144033FCEC56CE11D49C70C87C505675E79CBE09CA"
+      },
+      {
+        "Path": "PFS/PFSBuilder.cs",
+        "Sha256": "29A5B4C956CE05BF198332F95AA93F53A0B229ABDA874C94456EE3B9183EC613"
+      },
+      {
+        "Path": "PFS/PFSCReader.cs",
+        "Sha256": "0504B720CC82D049E15BC28B7361778441FA2F3D242F57CBEF987B95F8C834EA"
+      },
+      {
+        "Path": "PFS/PFSCWriter.cs",
+        "Sha256": "FB639EA6E746FA5A3361014BA669B7E0F624A0F96E0716267C66A66786A6ED28"
+      },
+      {
+        "Path": "PFS/PfsProperties.cs",
+        "Sha256": "999E56AA15A1DB5B507B8474F988C103C32ABFFAE96E9C801FED06C517B26401"
+      },
+      {
+        "Path": "PFS/PfsReader.cs",
+        "Sha256": "ADB6307C5F456F9A02AF0CC218A4D4F820DBB083C4DD8DA65718078A5D3B7DED"
+      },
+      {
+        "Path": "PFS/PfsStructs.cs",
+        "Sha256": "B02E1BA7133A083635123F655B7549CC623006983E2277C4DDF3367D72BE89FF"
+      },
+      {
+        "Path": "PFS/XtsDecryptReader.cs",
+        "Sha256": "A33D1681FF58B24D707D575E0CEE2C01081D4444CDF516A7620A7236618F78A3"
+      },
+      {
+        "Path": "PKG/Entry.cs",
+        "Sha256": "298DDAFF213C0B827BFF8DBB7A3C9BE825D74C92296A080DE622D0822C1F3F41"
+      },
+      {
+        "Path": "PKG/Enums.cs",
+        "Sha256": "384E22F77E9210278A5C546AE7171BD9343695C621919CB671225574C1197604"
+      },
+      {
+        "Path": "PKG/Pkg.cs",
+        "Sha256": "533A8ACC6614EF49D1E331B80EA6B9DF6B3E0F7B339C8D83D425C6C1AE854C1A"
+      },
+      {
+        "Path": "PKG/PkgBuilder.cs",
+        "Sha256": "05E0CA9CCA2E9188EEAC35752DD46CDBF1E427347D12C3B3DC29A787587168D5"
+      },
+      {
+        "Path": "PKG/PkgProperties.cs",
+        "Sha256": "93C232C999B103F3A54EEF86FEAA6F9B505055110B39F530B4A428F80F608CB4"
+      },
+      {
+        "Path": "PKG/PkgReader.cs",
+        "Sha256": "121C4527D015A35CE99EE01CE6A31329E6DDE10701AA1B9280587A857C16830D"
+      },
+      {
+        "Path": "PKG/PkgValidator.cs",
+        "Sha256": "EB18C042C097965E41450F0AA0B545EE87FA1D14607A73EB0E8D9CE237EDBF44"
+      },
+      {
+        "Path": "PKG/PkgWriter.cs",
+        "Sha256": "70BFA45003B91BFF67953B8FA2DA5A0F6BCF115DF8009D8A2A9C0E5D69A87BA5"
+      },
+      {
+        "Path": "PlayGo/ChunkDat.cs",
+        "Sha256": "C306F3F97D8F11410853DA91AFF14AC36D8F5599B6AE33DBFFE4531523E14DE7"
+      },
+      {
+        "Path": "PlayGo/Manifest.cs",
+        "Sha256": "7735931DA8952DA0F7C2E7742357D645697700CB475F07CB7DCBCA04122F64AB"
+      },
+      {
+        "Path": "Rif/LicenseDat.cs",
+        "Sha256": "612A5BCFC0EA54628F4449530AB293BC67B3C4FA270474DA9A19ED4A7055AA83"
+      },
+      {
+        "Path": "Rif/LicenseInfo.cs",
+        "Sha256": "131B1EFCD92A985F3627ED622E82FA174960670C533AF47F10BCE6DAFA01FD5A"
+      },
+      {
+        "Path": "SFO/ParamSfo.cs",
+        "Sha256": "04D88968F299D9294B66529EB82E26A2F3E81E64EC80EAA4473BC9FB259F2050"
+      },
+      {
+        "Path": "Util/Crypto.cs",
+        "Sha256": "15A2808057F5274ADAD4D5671F742DE496920396E42D03835955731D90D6CD59"
+      },
+      {
+        "Path": "Util/Extensions.cs",
+        "Sha256": "18C89E98923FAF3B0532D02314110746273C2274C0B64F5DCFEC47BBD2F4C719"
+      },
+      {
+        "Path": "Util/Keys.cs",
+        "Sha256": "48B44DD03E653A5C0991B0A2975477802EA2639C4E6EA3270B2FF20A1856F8A7"
+      },
+      {
+        "Path": "Util/MemoryMapped.cs",
+        "Sha256": "EB85D4F8F3E178214B0822824DE6ADD49524238C419D0F8AEE75F382AF1ABA2A"
+      },
+      {
+        "Path": "Util/MersenneTwister.cs",
+        "Sha256": "43B9769D6EFE5D647531C6C74FD4AB93CBB2AB81BED3B65F8F37C14BB027ADE7"
+      },
+      {
+        "Path": "Util/OffsetStream.cs",
+        "Sha256": "650A92F74E4A82E4DEAAD47BAC1CD10C792E854A64106D9D6B2C87695A989B4C"
+      },
+      {
+        "Path": "Util/ReaderBase.cs",
+        "Sha256": "1E0A97D7EA158DC6A234D2FE77665FB18664E836A51845D18AC4D41F9E4D3F92"
+      },
+      {
+        "Path": "Util/StreamExtensions.cs",
+        "Sha256": "1E0517BD24DAB7BFA722C3CF26F8B8A94D1527F1991AD58A090FE6CD717D3EF4"
+      },
+      {
+        "Path": "Util/SubStream.cs",
+        "Sha256": "C8AF94A55B107F8237830EF3EC676BBAA461F5F6EDD8A0E49AC5DEAF5A7C442C"
+      },
+      {
+        "Path": "Util/WriterBase.cs",
+        "Sha256": "AD4EDDC836C2204A14E4AEF4B0C2B8D655D0C1431AEAF37455D6F3AE8FE33428"
+      },
+      {
+        "Path": "Util/XtsBlockTransform.cs",
+        "Sha256": "EE98895A23017D3351D323404C0AF2F6D1BEF5357B8D441D57D012A616DC1B59"
+      }
+    ],
+    "Commit": "643477263b2644e0803e0f58b8726ea4e3f3b7d4",
+    "SourcePrefix": "LibOrbisPkg"
+  }
+]

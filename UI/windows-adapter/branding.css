@@ -1,0 +1,15 @@
+.orbitx-logo { display: block; width: 100%; height: auto; overflow: hidden; }
+.app :is(.cn-wordmark, .xb-wordmark, .brand) .orbitx-logo { width: clamp(80px, 8vw, 128px); height: auto; }
+.orbit-settings-panel > .orbitx-logo { width: min(100%, 360px); margin-bottom: 20px; }
+.orbitx-startup { position: fixed; inset: 0; z-index: 10000; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 28px; background: #02050a url('./assets/splash-background.png') center / cover no-repeat; color: #c0d1e1; opacity: 1; transition: opacity 450ms ease; }
+.orbitx-startup .orbitx-logo { width: min(72vw, 760px); animation: orbitx-arrive 600ms ease both; }
+.orbitx-startup p { font-size: .9rem; letter-spacing: .08em; }
+.orbitx-startup.leaving { opacity: 0; }
+.app.startup-pending { opacity: 0; }
+.app.startup-pending.startup-revealing { opacity: 1; transition: opacity 450ms ease; }
+@keyframes orbitx-arrive { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .orbitx-startup { transition: none; } .orbitx-startup .orbitx-logo { animation: none; } }
+html[data-motion=reduced] .orbitx-startup { transition: none; }
+html[data-motion=reduced] .orbitx-startup .orbitx-logo { animation: none; }
+@media (prefers-reduced-motion: reduce) { .app.startup-pending.startup-revealing { transition: none; } }
+html[data-motion=reduced] .app.startup-pending.startup-revealing { transition: none; }
