@@ -64,7 +64,7 @@
 .library-cover-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 1.7rem var(--tile-gap, 1.4rem); align-items: start; }
 .windows-library-card { min-width: 0; position: relative; margin: 0; border: 0; padding: 0; background: transparent; }
 .library-play-surface { display: flex; flex-direction: column; gap: .25rem; width: 100%; padding: 0; border: 0; border-radius: 10px; background: transparent; color: #edf2fa; text-align: left; cursor: pointer; touch-action: pan-x; }
-.library-poster { display: block; position: relative; aspect-ratio: 2 / 3; background: linear-gradient(145deg, #233149, #111827); border: 1px solid #36445b; border-radius: 10px; overflow: hidden; box-shadow: 0 8px 20px #0004; transition: border-color 500ms ease, box-shadow 500ms ease; }
+.library-poster { display: block; position: relative; aspect-ratio: 1 / 1; background: linear-gradient(145deg, #233149, #111827); border: 1px solid #36445b; border-radius: 10px; overflow: hidden; box-shadow: 0 8px 20px #0004; transition: border-color 500ms ease, box-shadow 500ms ease; }
 .library-poster img { width: 100%; height: 100%; object-fit: cover; transition: opacity 500ms ease; }
 .library-poster img[src$="orbit.svg"] { object-fit: contain; padding: 22%; background: linear-gradient(145deg, #233149, #111827); }
 .library-card-title { display: block; font: 600 14px/1.4 system-ui, sans-serif; margin: 10px 3px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
