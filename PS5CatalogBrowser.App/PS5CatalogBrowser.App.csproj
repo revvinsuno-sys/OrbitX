@@ -1,6 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <Resource Include="Assets/Branding/*.ico" />
     <Resource Include="Assets/Settings/*.png"/>
     <Resource Include="Assets/Branding/*.png"/>
   </ItemGroup>
@@ -24,6 +25,7 @@
   </ItemGroup>
 
   <PropertyGroup>
+    <ApplicationIcon>Assets/Branding/orbitx-icon.ico</ApplicationIcon>
     <OutputType>WinExe</OutputType>
     <AssemblyName>OrbitX</AssemblyName>
     <AssemblyTitle>OrbitX</AssemblyTitle>
